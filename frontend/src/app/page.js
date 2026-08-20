@@ -108,11 +108,14 @@ export default function Home() {
       rating: ratingInput
     }]);
 
-    if (!error) {
+    if (error) {
+      alert("Xatolik (Yulduzcha SQL kodi yozilmagan bo'lishi mumkin): " + error.message);
+    } else {
       setReviewInput('');
       fetchReviews(selectedProduct.id);
       fetchProducts(false);
       alert("Sharhingiz qoldirildi, rahmat!");
+      if (profileView === 'reviews') loadMyReviews();
     }
   };
 
@@ -201,19 +204,20 @@ export default function Home() {
       status: 'Kutilmoqda'
     }]);
 
-    // Adminga bildirishnoma yuborish
-    try {
-      await fetch('/api/notify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerName: checkoutName,
-          customerPhone: combinedPhone,
-          orderDetails: orderDetailsStr,
-          receiptUrl: ''
-        })
-      });
-    } catch(e) {}
+    // Telegram Bot orqali to'g'ridan to'g'ri xabar jo'natish
+    const BOT_TOKEN = "8977055750:AAHvhnSZHJyJ0dqUhVIQjpp2UrE9udVgpYI";
+    const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || "5466728043").split(',');
+    const message = `🛍 <b>Yangi Buyurtma!</b>\n\n👤 Mijoz: ${checkoutName}\n📱 Tel: ${combinedPhone}\n\n📦 <b>Mahsulotlar:</b>\n${orderDetailsStr}\n\n💰 Jami: <b>${formatPrice(totalPrice)}</b>`;
+
+    for (const adminId of ADMIN_IDS) {
+      if (adminId.trim()) {
+        fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: adminId.trim(), text: message, parse_mode: 'HTML' })
+        }).catch(e => console.error(e));
+      }
+    }
 
     setCart([]);
     setShowCheckout(false);

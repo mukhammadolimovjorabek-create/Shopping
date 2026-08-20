@@ -22,6 +22,8 @@ export default function AdminPage() {
   
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
+  const [activeTab, setActiveTab] = useState('products'); // products, orders
+  const [orders, setOrders] = useState([]);
 
   const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || '5466728043').split(',');
 
@@ -32,13 +34,16 @@ export default function AdminPage() {
         if (tgUser && ADMIN_IDS.includes(tgUser.id.toString())) {
           setIsAdmin(true);
           fetchProducts();
+          fetchOrders();
         } else if (process.env.NODE_ENV === 'development') {
           setIsAdmin(true);
           fetchProducts();
+          fetchOrders();
         }
       } else if (process.env.NODE_ENV === 'development') {
         setIsAdmin(true);
         fetchProducts();
+        fetchOrders();
       }
       setLoading(false);
     };
@@ -50,6 +55,21 @@ export default function AdminPage() {
   const fetchProducts = async () => {
     const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
     if (data) setProducts(data);
+  };
+
+  const fetchOrders = async () => {
+    const { data } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
+    if (data) setOrders(data);
+  };
+
+  const updateOrderStatus = async (orderId, newStatus) => {
+    try {
+      await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
+      fetchOrders();
+      alert("Holat yangilandi!");
+    } catch (e) {
+      alert("Xatolik: " + e.message);
+    }
   };
 
   const handleAddProduct = async (e) => {
@@ -137,8 +157,19 @@ export default function AdminPage() {
         <h1 className="text-2xl font-bold">Admin Panel 🛠️</h1>
         <Link href="/" className="px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition">Do'konga qaytish</Link>
       </div>
-      
-      <div className="bg-gray-800 p-6 rounded-2xl shadow-lg mb-8">
+
+      <div className="flex gap-4 mb-8">
+        <button onClick={() => setActiveTab('products')} className={`flex-1 py-3 rounded-xl font-bold transition ${activeTab === 'products' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'}`}>
+          📦 Mahsulotlar
+        </button>
+        <button onClick={() => setActiveTab('orders')} className={`flex-1 py-3 rounded-xl font-bold transition ${activeTab === 'orders' ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-400'}`}>
+          🛒 Buyurtmalar
+        </button>
+      </div>
+
+      {activeTab === 'products' && (
+        <>
+          <div className="bg-gray-800 p-6 rounded-2xl shadow-lg mb-8">
         <h2 className="text-xl font-semibold mb-4">Yangi mahsulot qo'shish</h2>
         
         {message && (
@@ -256,6 +287,58 @@ export default function AdminPage() {
           {products.length === 0 && <p className="text-gray-400 text-sm">Hozircha mahsulotlar yo'q</p>}
         </div>
       </div>
+        </>
+      )}
+
+      {activeTab === 'orders' && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold mb-4">🛒 Buyurtmalar ro'yxati</h2>
+          {orders.length === 0 ? (
+            <p className="text-gray-400">Hozircha buyurtmalar yo'q.</p>
+          ) : (
+            orders.map(order => (
+              <div key={order.id} className="bg-gray-800 p-5 rounded-2xl shadow-lg border border-gray-700">
+                <div className="flex justify-between items-start mb-4 border-b border-gray-700 pb-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-white">👤 {order.user_name}</h3>
+                    <p className="text-sm text-gray-400 mt-1">📱 {order.phone}</p>
+                    <p className="text-xs text-gray-500 mt-1">🕒 {new Date(order.created_at).toLocaleString()}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-green-400 mb-2">{order.total_price.toLocaleString('ru-RU')} so'm</p>
+                    <select 
+                      value={order.status}
+                      onChange={(e) => updateOrderStatus(order.id, e.target.value)}
+                      className={`text-sm font-bold px-3 py-1.5 rounded-lg outline-none ${order.status === 'Kutilmoqda' ? 'bg-orange-500/20 text-orange-400' : 'bg-green-500/20 text-green-400'}`}
+                    >
+                      <option value="Kutilmoqda" className="bg-gray-800 text-white">Kutilmoqda</option>
+                      <option value="Yetkazilmoqda - Bugun" className="bg-gray-800 text-white">Yetkazilmoqda - Bugun</option>
+                      <option value="Yetkazilmoqda - Ertaga" className="bg-gray-800 text-white">Yetkazilmoqda - Ertaga</option>
+                      <option value="Yetkazib berildi" className="bg-gray-800 text-white">Yetkazib berildi</option>
+                      <option value="Bekor qilindi" className="bg-gray-800 text-white">Bekor qilindi</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <h4 className="text-sm font-bold text-gray-400 mb-2">Mahsulotlar:</h4>
+                  {order.product_details.map((item, idx) => (
+                    <div key={idx} className="flex gap-3 bg-gray-700/50 p-2 rounded-xl">
+                      <img src={item.image_url} className="w-12 h-12 object-cover rounded-lg" />
+                      <div>
+                        <p className="text-sm font-semibold text-white">{item.title}</p>
+                        <p className="text-xs text-gray-400">
+                          Razmer: {item.selectedSize || 'yoq'} | Narxi: {item.finalPrice.toLocaleString('ru-RU')} so'm
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
