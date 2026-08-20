@@ -117,7 +117,11 @@ export default function Home() {
   };
 
   const formatPrice = (price) => {
-    return Number(price).toLocaleString('ru-RU') + " so'm";
+    const num = Number(price) || 0;
+    if (num < 1000) {
+      return "$" + num.toLocaleString('en-US');
+    }
+    return num.toLocaleString('ru-RU') + " so'm";
   };
 
   const calculateDiscount = (original, current) => {
