@@ -5,30 +5,40 @@ import { supabase } from '@/lib/supabase';
 export default function AdminPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  
   const [title, setTitle] = useState('');
   const [price, setPrice] = useState('');
-  const [category, setCategory] = useState('Erkaklar');
+  const [category, setCategory] = useState('Men');
   const [imageFile, setImageFile] = useState(null);
+  
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
   
-  const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || '5466728043').split(',');
+  const [products, setProducts] = useState([]);
+  
+  const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || '').split(',');
 
   useEffect(() => {
-    // Check if user is admin via Telegram WebApp
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       const tgUser = window.Telegram.WebApp.initDataUnsafe?.user;
       if (tgUser && ADMIN_IDS.includes(tgUser.id.toString())) {
         setIsAdmin(true);
+        fetchProducts();
       } else if (process.env.NODE_ENV === 'development') {
-        // Fallback for local testing
         setIsAdmin(true);
+        fetchProducts();
       }
     } else if (process.env.NODE_ENV === 'development') {
       setIsAdmin(true);
+      fetchProducts();
     }
     setLoading(false);
   }, []);
+
+  const fetchProducts = async () => {
+    const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+    if (data) setProducts(data);
+  };
 
   const handleAddProduct = async (e) => {
     e.preventDefault();
@@ -41,28 +51,26 @@ export default function AdminPage() {
     setMessage('');
 
     try {
-      // 1. Upload Image
       const fileExt = imageFile.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('product_images')
         .upload(fileName, imageFile);
 
       if (uploadError) throw uploadError;
 
-      // 2. Get Public URL
       const { data: publicUrlData } = supabase.storage
         .from('product_images')
         .getPublicUrl(fileName);
       
       const imageUrl = publicUrlData.publicUrl;
 
-      // 3. Insert into database
       const { error: dbError } = await supabase
         .from('products')
         .insert([{
           title,
-          price: parseFloat(price),
+          price_usd: parseFloat(price),
+          weight_kg: 0, // default weight
           category,
           image_url: imageUrl
         }]);
@@ -73,6 +81,7 @@ export default function AdminPage() {
       setTitle('');
       setPrice('');
       setImageFile(null);
+      fetchProducts(); // refresh list
     } catch (error) {
       console.error(error);
       setMessage('Xatolik yuz berdi: ' + error.message);
@@ -81,14 +90,33 @@ export default function AdminPage() {
     }
   };
 
+  const handleDelete = async (id, imageUrl) => {
+    if (!confirm('Haqiqatan ham bu mahsulotni o\'chirmoqchimisiz?')) return;
+    
+    try {
+      // 1. O'chirish (Baza)
+      await supabase.from('products').delete().eq('id', id);
+      
+      // 2. Rasmni o'chirish (Storage)
+      if (imageUrl) {
+        const fileName = imageUrl.split('/').pop();
+        await supabase.storage.from('product_images').remove([fileName]);
+      }
+      
+      fetchProducts();
+    } catch (error) {
+      alert('O\'chirishda xatolik: ' + error.message);
+    }
+  };
+
   if (loading) return <div className="p-8 text-center text-white">Tekshirilmoqda...</div>;
-  if (!isAdmin) return <div className="p-8 text-center text-red-400 font-bold">Sizga ruxsat yo'q! Kiring: Telegram.</div>;
+  if (!isAdmin) return <div className="p-8 text-center text-red-400 font-bold">Sizga ruxsat yo'q!</div>;
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6 pb-24">
       <h1 className="text-2xl font-bold mb-6">Admin Panel 🛠️</h1>
       
-      <div className="bg-gray-800 p-6 rounded-2xl shadow-lg">
+      <div className="bg-gray-800 p-6 rounded-2xl shadow-lg mb-8">
         <h2 className="text-xl font-semibold mb-4">Yangi mahsulot qo'shish</h2>
         
         {message && (
@@ -116,10 +144,10 @@ export default function AdminPage() {
             <label className="block text-sm text-gray-400 mb-1">Kategoriya</label>
             <select value={category} onChange={e => setCategory(e.target.value)} 
               className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="Erkaklar">Erkaklar</option>
-              <option value="Ayollar">Ayollar</option>
-              <option value="Bolalar">Bolalar</option>
-              <option value="Aksessuarlar">Aksessuarlar</option>
+              <option value="Men">Erkaklar (Men)</option>
+              <option value="Women">Ayollar (Women)</option>
+              <option value="Kids">Bolalar (Kids)</option>
+              <option value="Accessories">Aksessuarlar</option>
             </select>
           </div>
 
@@ -134,6 +162,28 @@ export default function AdminPage() {
             {uploading ? 'Yuklanmoqda...' : 'Mahsulotni Saqlash'}
           </button>
         </form>
+      </div>
+
+      <div className="bg-gray-800 p-6 rounded-2xl shadow-lg">
+        <h2 className="text-xl font-semibold mb-4">Barcha Mahsulotlar ({products.length})</h2>
+        <div className="space-y-4">
+          {products.map(p => (
+            <div key={p.id} className="flex items-center justify-between bg-gray-700 p-3 rounded-xl">
+              <div className="flex items-center gap-3">
+                <img src={p.image_url} alt={p.title} className="w-12 h-12 rounded-lg object-cover bg-gray-600" />
+                <div>
+                  <p className="font-bold text-sm">{p.title}</p>
+                  <p className="text-xs text-gray-400">${p.price_usd} • {p.category}</p>
+                </div>
+              </div>
+              <button onClick={() => handleDelete(p.id, p.image_url)} 
+                className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors">
+                🗑️ O'chirish
+              </button>
+            </div>
+          ))}
+          {products.length === 0 && <p className="text-gray-400 text-sm">Hozircha mahsulotlar yo'q</p>}
+        </div>
       </div>
     </div>
   );

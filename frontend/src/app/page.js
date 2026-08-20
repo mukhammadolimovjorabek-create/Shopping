@@ -62,11 +62,17 @@ export default function Home() {
     }));
   };
 
-  const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const totalAmount = cart.reduce((sum, item) => sum + (item.price_usd * item.quantity), 0);
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
-      const matchTab = activeTab === 'Barchasi' || p.category === activeTab;
+      let uiCat = 'Barchasi';
+      if (p.category === 'Men') uiCat = 'Erkaklar';
+      if (p.category === 'Women') uiCat = 'Ayollar';
+      if (p.category === 'Kids') uiCat = 'Bolalar';
+      if (p.category === 'Accessories') uiCat = 'Aksessuarlar';
+
+      const matchTab = activeTab === 'Barchasi' || uiCat === activeTab;
       const matchSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase());
       return matchTab && matchSearch;
     });
@@ -88,7 +94,7 @@ export default function Home() {
       const receiptUrl = publicUrlData.publicUrl;
 
       // 2. Prepare Order Details
-      let details = cart.map(item => `- ${item.title} x ${item.quantity} = $${(item.price * item.quantity).toFixed(2)}`).join('\n');
+      let details = cart.map(item => `- ${item.title} x ${item.quantity} = $${(item.price_usd * item.quantity).toFixed(2)}`).join('\n');
       details += `\n\nJami Summa: $${totalAmount.toFixed(2)}`;
       details += `\nOldindan to'lov (50%): $${(totalAmount / 2).toFixed(2)}`;
 
@@ -193,7 +199,7 @@ export default function Home() {
                 <div className="px-1">
                   <h3 className="font-bold text-gray-900 text-sm mb-1 truncate">{product.title}</h3>
                   <div className="flex justify-between items-center mt-2">
-                    <span className="font-black text-gray-900">${product.price}</span>
+                    <span className="font-black text-gray-900">${product.price_usd}</span>
                     <button onClick={() => addToCart(product)} className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center text-white hover:bg-gray-800 transition-colors shadow-md">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
