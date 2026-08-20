@@ -29,7 +29,7 @@ bot.onText(/\/start/, async (msg) => {
         console.error("Foydalanuvchini saqlashda xatolik:", err);
     }
 
-    const webAppUrl = (process.env.WEBAPP_URL || 'https://localhost:3000') + '?v=3';
+    const webAppUrl = (process.env.WEBAPP_URL || 'https://localhost:3000') + '?v=5';
 
     const welcomeMessage = `
 👋 <b>Assalomu alaykum, ${fullName}!</b>

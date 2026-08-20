@@ -16,7 +16,7 @@ export default function AdminPage() {
   const [deliveryTime, setDeliveryTime] = useState('Ertaga');
   const [sizes, setSizes] = useState('');
   const [promoCode, setPromoCode] = useState('');
-  const [promoPercent, setPromoPercent] = useState('0');
+  const [promoPercent, setPromoPercent] = useState('');
   const [category, setCategory] = useState('Men');
   const [imageFile, setImageFile] = useState(null);
   
@@ -94,7 +94,7 @@ export default function AdminPage() {
       if (insertError) throw insertError;
 
       setMessage('Mahsulot muvaffaqiyatli qo\'shildi!');
-      setTitle(''); setPrice(''); setOriginalPrice(''); setSizes(''); setPromoCode(''); setPromoPercent('0'); setImageFile(null);
+      setTitle(''); setPrice(''); setOriginalPrice(''); setSizes(''); setPromoCode(''); setPromoPercent(''); setImageFile(null);
       fetchProducts();
     } catch (error) {
       setMessage('Xatolik yuz berdi: ' + error.message);
@@ -157,13 +157,13 @@ export default function AdminPage() {
           
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Sotuv narxi (So'm yoki $)</label>
+              <label className="block text-sm text-gray-400 mb-1">Sotuv narxi</label>
               <input type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)} 
                 className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
                 placeholder="Masalan: 53000" required />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Eski narxi (Ustiga chizilgan)</label>
+              <label className="block text-sm text-gray-400 mb-1">Eski narxi (ustiga chizilgan)</label>
               <input type="number" step="0.01" value={originalPrice} onChange={e => setOriginalPrice(e.target.value)} 
                 className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
                 placeholder="Masalan: 150000" />
