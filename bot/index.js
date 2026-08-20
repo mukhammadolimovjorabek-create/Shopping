@@ -38,7 +38,7 @@ bot.onText(/\/start/, async (msg) => {
             if (error) console.error("Database error (upsert user):", error);
         }
 
-        const webAppUrl = process.env.WEBAPP_URL || 'https://localhost:3000';
+        const webAppUrl = (process.env.WEBAPP_URL || 'https://localhost:3000') + '?v=2';
 
         const welcomeMessage = `
 👋 <b>Assalomu alaykum, ${fullName}!</b>

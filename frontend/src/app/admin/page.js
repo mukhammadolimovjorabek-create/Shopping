@@ -19,20 +19,25 @@ export default function AdminPage() {
   const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || '5466728043').split(',');
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      const tgUser = window.Telegram.WebApp.initDataUnsafe?.user;
-      if (tgUser && ADMIN_IDS.includes(tgUser.id.toString())) {
-        setIsAdmin(true);
-        fetchProducts();
+    const check = () => {
+      if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+        const tgUser = window.Telegram.WebApp.initDataUnsafe?.user;
+        if (tgUser && ADMIN_IDS.includes(tgUser.id.toString())) {
+          setIsAdmin(true);
+          fetchProducts();
+        } else if (process.env.NODE_ENV === 'development') {
+          setIsAdmin(true);
+          fetchProducts();
+        }
       } else if (process.env.NODE_ENV === 'development') {
         setIsAdmin(true);
         fetchProducts();
       }
-    } else if (process.env.NODE_ENV === 'development') {
-      setIsAdmin(true);
-      fetchProducts();
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+    check();
+    setTimeout(check, 500);
+    setTimeout(check, 1500);
   }, []);
 
   const fetchProducts = async () => {
