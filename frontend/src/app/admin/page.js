@@ -78,16 +78,17 @@ export default function AdminPage() {
 
       const { error: insertError } = await supabase.from('products').insert([{
         title,
-        price_usd: parseFloat(price),
+        price_usd: parseFloat(price) || 0,
         original_price: originalPrice ? parseFloat(originalPrice) : 0,
-        stock_count: parseInt(stockCount),
-        delivery_time: deliveryTime,
-        sizes: sizes,
-        promo_code: promoCode,
-        promo_percent: parseInt(promoPercent),
+        stock_count: stockCount ? parseInt(stockCount) : 1,
+        delivery_time: deliveryTime || 'Ertaga',
+        sizes: sizes || '',
+        promo_code: promoCode || '',
+        promo_percent: promoPercent ? parseInt(promoPercent) : 0,
         category,
         image_url: publicUrlData.publicUrl,
-        description: null
+        description: null,
+        weight_kg: 0
       }]);
 
       if (insertError) throw insertError;
