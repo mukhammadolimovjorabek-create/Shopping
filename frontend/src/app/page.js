@@ -6,14 +6,17 @@ import Link from 'next/link';
 export default function Home() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('home'); // home, cart, profile
+  const [activeTab, setActiveTab] = useState('home');
   const [cart, setCart] = useState([]);
   
-  // Modal states
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedSize, setSelectedSize] = useState('');
   const [promoInput, setPromoInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState(null);
+  
+  const [reviews, setReviews] = useState([]);
+  const [ratingInput, setRatingInput] = useState(5);
+  const [reviewInput, setReviewInput] = useState('');
   
   const [isAdmin, setIsAdmin] = useState(false);
   const [tgUser, setTgUser] = useState(null);
@@ -21,6 +24,12 @@ export default function Home() {
   useEffect(() => {
     fetchProducts();
     checkUser();
+    
+    // Auto-Refresh (Realtime) har 3 soniyada
+    const interval = setInterval(() => {
+      fetchProducts(false);
+    }, 3000);
+    return () => clearInterval(interval);
   }, []);
 
   const checkUser = () => {
@@ -37,13 +46,37 @@ export default function Home() {
     };
     check();
     setTimeout(check, 500);
-    setTimeout(check, 1500);
   };
 
-  const fetchProducts = async () => {
-    const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+  const fetchProducts = async (showLoading = true) => {
+    if (showLoading && products.length === 0) setLoading(true);
+    // Fetch products along with their reviews to calculate average ratings
+    const { data } = await supabase.from('products').select('*, reviews(rating)').order('created_at', { ascending: false });
     if (data) setProducts(data);
-    setLoading(false);
+    if (showLoading) setLoading(false);
+  };
+
+  const fetchReviews = async (productId) => {
+    const { data } = await supabase.from('reviews').select('*').eq('product_id', productId).order('created_at', { ascending: false });
+    if (data) setReviews(data);
+  };
+
+  const submitReview = async () => {
+    if (!reviewInput.trim()) return alert("Iltimos, sharh matnini yozing.");
+    
+    const { error } = await supabase.from('reviews').insert([{
+      product_id: selectedProduct.id,
+      user_id: tgUser?.id?.toString() || 'anonymous',
+      user_name: tgUser?.first_name || 'Mijoz',
+      text: reviewInput,
+      rating: ratingInput
+    }]);
+
+    if (!error) {
+      setReviewInput('');
+      fetchReviews(selectedProduct.id);
+      fetchProducts(false); // Update averages on home page
+    }
   };
 
   const formatPrice = (price) => {
@@ -55,16 +88,24 @@ export default function Home() {
     return Math.round(((original - current) / original) * 100);
   };
 
-  // --- Modal Functions ---
+  const getAverageRating = (productReviews) => {
+    if (!productReviews || productReviews.length === 0) return 0;
+    const validRatings = productReviews.map(r => r.rating || 0).filter(r => r > 0);
+    if (validRatings.length === 0) return 0;
+    const sum = validRatings.reduce((a, b) => a + b, 0);
+    return (sum / validRatings.length).toFixed(1);
+  };
+
   const openProduct = (product) => {
     setSelectedProduct(product);
     setSelectedSize('');
     setPromoInput('');
     setAppliedPromo(null);
+    fetchReviews(product.id);
   };
 
   const applyPromo = () => {
-    if (promoInput.toUpperCase() === selectedProduct.promo_code?.toUpperCase()) {
+    if (selectedProduct.promo_code && promoInput.toUpperCase() === selectedProduct.promo_code.toUpperCase()) {
       setAppliedPromo(selectedProduct.promo_percent);
       alert(`Promokod qabul qilindi! ${selectedProduct.promo_percent}% chegirma qo'llandi.`);
     } else {
@@ -93,7 +134,7 @@ export default function Home() {
 
     setCart([...cart, cartItem]);
     alert("Savatga qo'shildi!");
-    setSelectedProduct(null); // Close modal
+    setSelectedProduct(null);
   };
 
   const removeFromCart = (cartId) => {
@@ -102,9 +143,6 @@ export default function Home() {
 
   const checkout = async () => {
     if (cart.length === 0) return alert("Savatingiz bo'sh!");
-    
-    // In a real app, you would save to 'orders' table here and upload receipt.
-    // For now, simple alert to show it works
     alert("Buyurtmangiz qabul qilindi! Tez orada siz bilan bog'lanamiz.");
     setCart([]);
     setActiveTab('home');
@@ -115,11 +153,10 @@ export default function Home() {
   return (
     <div className="flex flex-col h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden">
       
-      {/* HEADER */}
       <div className="bg-white px-4 py-3 flex justify-between items-center shadow-sm z-10">
         <div>
           <h1 className="text-xl font-extrabold text-indigo-600 tracking-tight flex items-center gap-1">
-            Uzum <span className="text-black">Shop</span>
+            Omni<span className="text-black">Shop</span>
           </h1>
           <p className="text-[10px] text-gray-500 font-medium">Xitoydan to'g'ridan-to'g'ri 🇨🇳</p>
         </div>
@@ -131,21 +168,19 @@ export default function Home() {
         )}
       </div>
 
-      {/* MAIN CONTENT AREA */}
       <div className="flex-1 overflow-y-auto pb-20 relative">
         
-        {/* --- HOME TAB --- */}
         {activeTab === 'home' && (
           <div className="p-4 grid grid-cols-2 gap-3">
             {products.map(p => {
               const isOutOfStock = p.description === 'OUT_OF_STOCK' || p.stock_count <= 0;
               const discount = calculateDiscount(p.original_price, p.price_usd);
+              const avgRating = getAverageRating(p.reviews);
               
               return (
                 <div key={p.id} onClick={() => !isOutOfStock && openProduct(p)} 
                   className={`bg-white rounded-2xl p-2 shadow-sm border border-gray-100 relative ${isOutOfStock ? 'opacity-50' : 'active:scale-95 transition-transform'}`}>
                   
-                  {/* Badges */}
                   <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
                     {discount > 0 && (
                       <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md">
@@ -170,7 +205,7 @@ export default function Home() {
                     
                     <div className="mt-2 flex items-center gap-1">
                       <span className="bg-yellow-100 text-yellow-700 text-[9px] font-bold px-1.5 py-0.5 rounded">
-                        ★ 4.9
+                        ★ {avgRating}
                       </span>
                       <span className="text-[10px] text-gray-400">{p.delivery_time}</span>
                     </div>
@@ -189,7 +224,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* --- CART TAB --- */}
         {activeTab === 'cart' && (
           <div className="p-4">
             <h2 className="text-xl font-bold mb-4">Savatingiz ({cart.length})</h2>
@@ -228,7 +262,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* --- PROFILE TAB --- */}
         {activeTab === 'profile' && (
           <div className="p-4">
             <div className="bg-white p-6 rounded-3xl shadow-sm text-center mb-4">
@@ -236,7 +269,7 @@ export default function Home() {
                 {tgUser ? tgUser.first_name[0] : 'U'}
               </div>
               <h2 className="text-xl font-bold">{tgUser ? tgUser.first_name : 'Foydalanuvchi'}</h2>
-              <p className="text-gray-500 text-sm">{tgUser ? '@'+tgUser.username : ''}</p>
+              <p className="text-gray-500 text-sm">{tgUser ? '@'+(tgUser.username || '') : ''}</p>
             </div>
 
             <div className="space-y-2">
@@ -258,7 +291,6 @@ export default function Home() {
 
       </div>
 
-      {/* --- BOTTOM NAVIGATION --- */}
       <div className="absolute bottom-0 w-full bg-white border-t border-gray-200 px-6 py-3 flex justify-between items-center pb-safe">
         <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 ${activeTab === 'home' ? 'text-indigo-600' : 'text-gray-400'}`}>
           <span className="text-2xl">🏠</span>
@@ -275,7 +307,6 @@ export default function Home() {
         </button>
       </div>
 
-      {/* --- PRODUCT DETAILS MODAL --- */}
       {selectedProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 flex flex-col justify-end">
           <div className="bg-white w-full h-[90%] rounded-t-3xl flex flex-col relative animate-slide-up overflow-hidden">
@@ -315,7 +346,6 @@ export default function Home() {
                   <span className="text-sm text-gray-600">Yetkazish: <strong className="text-black">{selectedProduct.delivery_time}</strong></span>
                 </div>
 
-                {/* SIZES */}
                 {selectedProduct.sizes && selectedProduct.sizes.trim() !== '' && (
                   <div className="mt-6">
                     <h4 className="font-bold mb-3 text-gray-800">O'lchamni tanlang:</h4>
@@ -330,7 +360,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* PROMOCODE */}
                 <div className="mt-6">
                   <h4 className="font-bold mb-3 text-gray-800">Promokod</h4>
                   <div className="flex gap-2">
@@ -342,19 +371,45 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* REVIEWS */}
+                {/* YULDUZCHA VA SHARHLAR */}
                 <div className="mt-8 border-t pt-6">
-                  <h4 className="font-bold text-xl mb-4">Sharhlar (0)</h4>
-                  <div className="text-center text-gray-500 py-6 bg-gray-50 rounded-2xl">
-                    <p className="text-3xl mb-2">💬</p>
-                    <p>Hozircha sharhlar yo'q. Birinchi bo'lib izoh qoldiring!</p>
-                    <button className="mt-3 text-indigo-600 font-bold">Sharh yozish</button>
+                  <h4 className="font-bold text-xl mb-4">Sharhlar ({reviews.length})</h4>
+                  
+                  {/* Sharh yozish */}
+                  <div className="bg-gray-50 p-4 rounded-2xl mb-4">
+                    <p className="text-sm font-bold mb-2">Baholang:</p>
+                    <div className="flex gap-2 mb-3">
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button key={star} onClick={() => setRatingInput(star)} className="text-3xl focus:outline-none">
+                          {star <= ratingInput ? '⭐' : '☆'}
+                        </button>
+                      ))}
+                    </div>
+                    <textarea value={reviewInput} onChange={e => setReviewInput(e.target.value)}
+                      placeholder="Mahsulot haqida fikringiz..." className="w-full bg-white border border-gray-200 rounded-xl p-3 outline-none focus:border-indigo-500 h-24 mb-2"></textarea>
+                    <button onClick={submitReview} className="w-full bg-indigo-100 text-indigo-700 font-bold py-2 rounded-xl">Jo'natish</button>
                   </div>
+
+                  {/* Sharhlar ro'yxati */}
+                  {reviews.length === 0 ? (
+                    <div className="text-center text-gray-500 py-6">Hali sharhlar yo'q. Birinchi bo'lib yozing!</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {reviews.map(r => (
+                        <div key={r.id} className="bg-white border border-gray-100 p-3 rounded-xl">
+                          <div className="flex justify-between mb-1">
+                            <span className="font-bold text-sm">{r.user_name}</span>
+                            <span className="text-yellow-500 text-xs">{'⭐'.repeat(r.rating || 5)}</span>
+                          </div>
+                          <p className="text-gray-600 text-sm">{r.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* ADD TO CART BUTTON (Fixed at bottom of modal) */}
             <div className="absolute bottom-0 w-full bg-white p-4 border-t border-gray-100 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
               <button onClick={addToCart} className="w-full bg-indigo-600 text-white text-lg font-bold py-4 rounded-2xl active:scale-95 transition-transform shadow-lg shadow-indigo-200">
                 Savatga qo'shish
