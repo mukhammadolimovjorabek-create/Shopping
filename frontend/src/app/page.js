@@ -71,8 +71,24 @@ export default function Home() {
 
   const fetchProducts = async (showLoading = true) => {
     if (showLoading && products.length === 0) setLoading(true);
-    const { data } = await supabase.from('products').select('*, reviews(rating)').order('created_at', { ascending: false });
-    if (data) setProducts(data);
+    
+    try {
+      const { data: productsData, error: pError } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+      if (pError) throw pError;
+      
+      const { data: reviewsData, error: rError } = await supabase.from('reviews').select('*');
+      
+      if (productsData) {
+        const combined = productsData.map(p => ({
+          ...p,
+          reviews: (reviewsData || []).filter(r => r.product_id === p.id)
+        }));
+        setProducts(combined);
+      }
+    } catch (e) {
+      console.error("Products error:", e);
+    }
+    
     if (showLoading) setLoading(false);
   };
 
