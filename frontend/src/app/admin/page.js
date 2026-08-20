@@ -16,7 +16,7 @@ export default function AdminPage() {
   
   const [products, setProducts] = useState([]);
   
-  const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || '').split(',');
+  const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || '5466728043').split(',');
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {

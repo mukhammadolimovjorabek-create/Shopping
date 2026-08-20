@@ -28,7 +28,7 @@ export default function Home() {
   const checkAdmin = () => {
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       const tgUser = window.Telegram.WebApp.initDataUnsafe?.user;
-      const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || '').split(',');
+      const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || '5466728043').split(',');
       if (tgUser && ADMIN_IDS.includes(tgUser.id.toString())) {
         setIsAdmin(true);
       }
