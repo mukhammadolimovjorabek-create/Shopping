@@ -186,29 +186,46 @@ export default function Home() {
           <div className="text-center py-10 text-gray-500">Mahsulot topilmadi 😕</div>
         ) : (
           <div className="grid grid-cols-2 gap-4">
-            {filteredProducts.map((product) => (
-              <div key={product.id} className="bg-white rounded-3xl p-3 shadow-sm hover:shadow-md transition-shadow relative group">
-                <button className="absolute top-4 right-4 z-10 p-2 bg-white/80 backdrop-blur-md rounded-full shadow-sm text-gray-400 hover:text-red-500 transition-colors">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                  </svg>
-                </button>
-                <div className="w-full h-40 bg-gray-50 rounded-2xl mb-3 overflow-hidden relative">
-                  <img src={product.image_url} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                </div>
-                <div className="px-1">
-                  <h3 className="font-bold text-gray-900 text-sm mb-1 truncate">{product.title}</h3>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className="font-black text-gray-900">${product.price_usd}</span>
-                    <button onClick={() => addToCart(product)} className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center text-white hover:bg-gray-800 transition-colors shadow-md">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                      </svg>
-                    </button>
+            {filteredProducts.map((product) => {
+              const isOutOfStock = product.description === 'OUT_OF_STOCK';
+              const isNew = !isOutOfStock && (new Date() - new Date(product.created_at)) / (1000 * 60 * 60 * 24) <= 3; // 3 days
+
+              return (
+                <div key={product.id} className={`bg-white rounded-3xl p-3 shadow-sm hover:shadow-md transition-shadow relative group ${isOutOfStock ? 'opacity-75' : ''}`}>
+                  
+                  {/* Badges */}
+                  <div className="absolute top-4 left-4 z-10 flex flex-col gap-1">
+                    {isOutOfStock && <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-sm">TUGAGAN</span>}
+                    {isNew && <span className="bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-sm">YANGI</span>}
+                  </div>
+
+                  <button className="absolute top-4 right-4 z-10 p-2 bg-white/80 backdrop-blur-md rounded-full shadow-sm text-gray-400 hover:text-red-500 transition-colors">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                  </button>
+                  <div className="w-full h-40 bg-gray-50 rounded-2xl mb-3 overflow-hidden relative">
+                    <img src={product.image_url} alt={product.title} className={`w-full h-full object-cover transition-transform duration-500 ${isOutOfStock ? 'grayscale' : 'group-hover:scale-105'}`} />
+                  </div>
+                  <div className="px-1">
+                    <h3 className="font-bold text-gray-900 text-sm mb-1 truncate">{product.title}</h3>
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="font-black text-gray-900">${product.price_usd}</span>
+                      <button 
+                        onClick={() => addToCart(product)} 
+                        disabled={isOutOfStock}
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-white transition-colors shadow-md ${isOutOfStock ? 'bg-gray-300 cursor-not-allowed' : 'bg-gray-900 hover:bg-gray-800'}`}>
+                        {isOutOfStock ? (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        ) : (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

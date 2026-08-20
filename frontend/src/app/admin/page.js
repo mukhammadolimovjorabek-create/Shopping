@@ -94,23 +94,29 @@ export default function AdminPage() {
     if (!confirm('Haqiqatan ham bu mahsulotni o\'chirmoqchimisiz?')) return;
     
     try {
-      // 1. O'chirish (Baza)
       await supabase.from('products').delete().eq('id', id);
-      
-      // 2. Rasmni o'chirish (Storage)
       if (imageUrl) {
         const fileName = imageUrl.split('/').pop();
         await supabase.storage.from('product_images').remove([fileName]);
       }
-      
       fetchProducts();
     } catch (error) {
       alert('O\'chirishda xatolik: ' + error.message);
     }
   };
 
+  const handleToggleStock = async (id, currentDesc) => {
+    try {
+      const newDesc = currentDesc === 'OUT_OF_STOCK' ? null : 'OUT_OF_STOCK';
+      await supabase.from('products').update({ description: newDesc }).eq('id', id);
+      fetchProducts();
+    } catch (error) {
+      alert('Xatolik yuz berdi: ' + error.message);
+    }
+  };
+
   if (loading) return <div className="p-8 text-center text-white">Tekshirilmoqda...</div>;
-  if (!isAdmin) return <div className="p-8 text-center text-red-400 font-bold">Sizga ruxsat yo'q!</div>;
+  if (!isAdmin) return <div className="p-8 text-center text-red-400 font-bold">Sizga ruxsat yo'q! Kiring: Telegram.</div>;
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6 pb-24">
@@ -168,18 +174,24 @@ export default function AdminPage() {
         <h2 className="text-xl font-semibold mb-4">Barcha Mahsulotlar ({products.length})</h2>
         <div className="space-y-4">
           {products.map(p => (
-            <div key={p.id} className="flex items-center justify-between bg-gray-700 p-3 rounded-xl">
+            <div key={p.id} className="flex flex-col gap-2 bg-gray-700 p-3 rounded-xl border border-gray-600">
               <div className="flex items-center gap-3">
                 <img src={p.image_url} alt={p.title} className="w-12 h-12 rounded-lg object-cover bg-gray-600" />
-                <div>
+                <div className="flex-1">
                   <p className="font-bold text-sm">{p.title}</p>
                   <p className="text-xs text-gray-400">${p.price_usd} • {p.category}</p>
                 </div>
               </div>
-              <button onClick={() => handleDelete(p.id, p.image_url)} 
-                className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors">
-                🗑️ O'chirish
-              </button>
+              <div className="flex gap-2 mt-2">
+                <button onClick={() => handleToggleStock(p.id, p.description)} 
+                  className={`flex-1 p-2 rounded-lg text-sm font-semibold transition-colors ${p.description === 'OUT_OF_STOCK' ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30' : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'}`}>
+                  {p.description === 'OUT_OF_STOCK' ? 'Sotuvga qaytarish' : 'Tugadi deb belgilash'}
+                </button>
+                <button onClick={() => handleDelete(p.id, p.image_url)} 
+                  className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg text-sm font-semibold hover:bg-red-500/30 transition-colors">
+                  O'chirish 🗑️
+                </button>
+              </div>
             </div>
           ))}
           {products.length === 0 && <p className="text-gray-400 text-sm">Hozircha mahsulotlar yo'q</p>}
