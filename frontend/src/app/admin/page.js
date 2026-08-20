@@ -1,21 +1,28 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '../../lib/supabase';
+import Link from 'next/link';
 
 export default function AdminPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState([]);
   
+  // Form states
   const [title, setTitle] = useState('');
   const [price, setPrice] = useState('');
+  const [originalPrice, setOriginalPrice] = useState('');
+  const [stockCount, setStockCount] = useState('10');
+  const [deliveryTime, setDeliveryTime] = useState('Ertaga');
+  const [sizes, setSizes] = useState('');
+  const [promoCode, setPromoCode] = useState('');
+  const [promoPercent, setPromoPercent] = useState('0');
   const [category, setCategory] = useState('Men');
   const [imageFile, setImageFile] = useState(null);
   
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
-  
-  const [products, setProducts] = useState([]);
-  
+
   const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || '5466728043').split(',');
 
   useEffect(() => {
@@ -48,17 +55,18 @@ export default function AdminPage() {
   const handleAddProduct = async (e) => {
     e.preventDefault();
     if (!title || !price || !imageFile) {
-      setMessage('Iltimos, barcha maydonlarni to\'ldiring!');
+      setMessage('Xatolik: Nomi, narxi va rasmi kiritilishi shart!');
       return;
     }
-
+    
     setUploading(true);
     setMessage('');
 
     try {
       const fileExt = imageFile.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage
+      const fileName = `${Math.random()}.${fileExt}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('product_images')
         .upload(fileName, imageFile);
 
@@ -67,28 +75,27 @@ export default function AdminPage() {
       const { data: publicUrlData } = supabase.storage
         .from('product_images')
         .getPublicUrl(fileName);
-      
-      const imageUrl = publicUrlData.publicUrl;
 
-      const { error: dbError } = await supabase
-        .from('products')
-        .insert([{
-          title,
-          price_usd: parseFloat(price),
-          weight_kg: 0, // default weight
-          category,
-          image_url: imageUrl
-        }]);
+      const { error: insertError } = await supabase.from('products').insert([{
+        title,
+        price_usd: parseFloat(price),
+        original_price: originalPrice ? parseFloat(originalPrice) : 0,
+        stock_count: parseInt(stockCount),
+        delivery_time: deliveryTime,
+        sizes: sizes,
+        promo_code: promoCode,
+        promo_percent: parseInt(promoPercent),
+        category,
+        image_url: publicUrlData.publicUrl,
+        description: null
+      }]);
 
-      if (dbError) throw dbError;
+      if (insertError) throw insertError;
 
-      setMessage('Mahsulot muvaffaqiyatli qo\'shildi! ✅');
-      setTitle('');
-      setPrice('');
-      setImageFile(null);
-      fetchProducts(); // refresh list
+      setMessage('Mahsulot muvaffaqiyatli qo\'shildi!');
+      setTitle(''); setPrice(''); setOriginalPrice(''); setSizes(''); setPromoCode(''); setPromoPercent('0'); setImageFile(null);
+      fetchProducts();
     } catch (error) {
-      console.error(error);
       setMessage('Xatolik yuz berdi: ' + error.message);
     } finally {
       setUploading(false);
@@ -125,7 +132,10 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6 pb-24">
-      <h1 className="text-2xl font-bold mb-6">Admin Panel 🛠️</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Admin Panel 🛠️</h1>
+        <Link href="/" className="px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition">Do'konga qaytish</Link>
+      </div>
       
       <div className="bg-gray-800 p-6 rounded-2xl shadow-lg mb-8">
         <h2 className="text-xl font-semibold mb-4">Yangi mahsulot qo'shish</h2>
@@ -141,14 +151,59 @@ export default function AdminPage() {
             <label className="block text-sm text-gray-400 mb-1">Mahsulot nomi</label>
             <input type="text" value={title} onChange={e => setTitle(e.target.value)} 
               className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
-              placeholder="Masalan: Nike Air Max" />
+              placeholder="Masalan: Nike Air Max" required />
           </div>
           
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Sotuv narxi (So'm yoki $)</label>
+              <input type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)} 
+                className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
+                placeholder="Masalan: 53000" required />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Eski narxi (Ustiga chizilgan)</label>
+              <input type="number" step="0.01" value={originalPrice} onChange={e => setOriginalPrice(e.target.value)} 
+                className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
+                placeholder="Masalan: 150000" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Qoldiq (Soni)</label>
+              <input type="number" value={stockCount} onChange={e => setStockCount(e.target.value)} 
+                className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
+                placeholder="Nechta bor?" />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Yetkazib berish (Matn)</label>
+              <input type="text" value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} 
+                className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
+                placeholder="Masalan: Ertaga" />
+            </div>
+          </div>
+
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Narxi ($)</label>
-            <input type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)} 
+            <label className="block text-sm text-gray-400 mb-1">O'lchamlar (Vergul bilan ajrating)</label>
+            <input type="text" value={sizes} onChange={e => setSizes(e.target.value)} 
               className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
-              placeholder="Masalan: 45.99" />
+              placeholder="Masalan: 39, 40, 41 yoki S, M, L" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Promokod (Majburiy emas)</label>
+              <input type="text" value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())} 
+                className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
+                placeholder="Masalan: SALE10" />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Promokod chegirmasi (%)</label>
+              <input type="number" value={promoPercent} onChange={e => setPromoPercent(e.target.value)} 
+                className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
+                placeholder="Masalan: 10" />
+            </div>
           </div>
 
           <div>
@@ -157,15 +212,13 @@ export default function AdminPage() {
               className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500">
               <option value="Men">Erkaklar (Men)</option>
               <option value="Women">Ayollar (Women)</option>
-              <option value="Kids">Bolalar (Kids)</option>
-              <option value="Accessories">Aksessuarlar</option>
             </select>
           </div>
 
           <div>
             <label className="block text-sm text-gray-400 mb-1">Mahsulot rasmi</label>
             <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files[0])} 
-              className="w-full bg-gray-700 rounded-xl p-2 text-white outline-none" />
+              className="w-full bg-gray-700 rounded-xl p-2 text-white outline-none" required />
           </div>
 
           <button type="submit" disabled={uploading} 
@@ -184,7 +237,7 @@ export default function AdminPage() {
                 <img src={p.image_url} alt={p.title} className="w-12 h-12 rounded-lg object-cover bg-gray-600" />
                 <div className="flex-1">
                   <p className="font-bold text-sm">{p.title}</p>
-                  <p className="text-xs text-gray-400">${p.price_usd} • {p.category}</p>
+                  <p className="text-xs text-gray-400">{p.price_usd} so'm • Qoldiq: {p.stock_count} ta</p>
                 </div>
               </div>
               <div className="flex gap-2 mt-2">
