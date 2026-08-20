@@ -22,8 +22,12 @@ export default function AdminPage() {
   
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
-  const [activeTab, setActiveTab] = useState('products'); // products, orders
+  const [activeTab, setActiveTab] = useState('products'); // products, orders, reviews, messages
   const [orders, setOrders] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [messages, setMessages] = useState([]);
+  
+  const [replyText, setReplyText] = useState({});
 
   const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || '5466728043').split(',');
 
@@ -33,17 +37,14 @@ export default function AdminPage() {
         const tgUser = window.Telegram.WebApp.initDataUnsafe?.user;
         if (tgUser && ADMIN_IDS.includes(tgUser.id.toString())) {
           setIsAdmin(true);
-          fetchProducts();
-          fetchOrders();
+          fetchAllData();
         } else if (process.env.NODE_ENV === 'development') {
           setIsAdmin(true);
-          fetchProducts();
-          fetchOrders();
+          fetchAllData();
         }
       } else if (process.env.NODE_ENV === 'development') {
         setIsAdmin(true);
-        fetchProducts();
-        fetchOrders();
+        fetchAllData();
       }
       setLoading(false);
     };
@@ -51,6 +52,13 @@ export default function AdminPage() {
     setTimeout(check, 500);
     setTimeout(check, 1500);
   }, []);
+
+  const fetchAllData = () => {
+    fetchProducts();
+    fetchOrders();
+    fetchReviews();
+    fetchMessages();
+  };
 
   const fetchProducts = async () => {
     const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
@@ -60,6 +68,33 @@ export default function AdminPage() {
   const fetchOrders = async () => {
     const { data } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
     if (data) setOrders(data);
+  };
+
+  const fetchReviews = async () => {
+    try {
+      const { data } = await supabase.from('reviews').select('*, products(title)').order('created_at', { ascending: false });
+      if (data) setReviews(data);
+    } catch(e){}
+  };
+
+  const fetchMessages = async () => {
+    try {
+      const { data } = await supabase.from('messages').select('*').order('created_at', { ascending: false });
+      if (data) setMessages(data);
+    } catch(e){}
+  };
+
+  const submitReply = async (table, id) => {
+    const text = replyText[id];
+    if (!text) return;
+    try {
+      await supabase.from(table).update({ admin_reply: text }).eq('id', id);
+      alert("Javob saqlandi!");
+      if (table === 'reviews') fetchReviews();
+      if (table === 'messages') fetchMessages();
+    } catch(e) {
+      alert("SQL Xatoligi (admin_reply kolonkasi yo'q bo'lishi mumkin): " + e.message);
+    }
   };
 
   const updateOrderStatus = async (orderId, newStatus) => {
@@ -233,8 +268,7 @@ export default function AdminPage() {
             <div>
               <label className="block text-sm text-gray-400 mb-1">Promokod chegirmasi (%)</label>
               <input type="number" value={promoPercent} onChange={e => setPromoPercent(e.target.value)} 
-                className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
-                placeholder="Masalan: 10" />
+                className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
           </div>
 
@@ -259,35 +293,39 @@ export default function AdminPage() {
           </button>
         </form>
       </div>
-
-      <div className="bg-gray-800 p-6 rounded-2xl shadow-lg">
+      
+      <div className="bg-gray-800 p-6 rounded-2xl shadow-lg mb-8">
         <h2 className="text-xl font-semibold mb-4">Barcha Mahsulotlar ({products.length})</h2>
-        <div className="space-y-4">
-          {products.map(p => (
-            <div key={p.id} className="flex flex-col gap-2 bg-gray-700 p-3 rounded-xl border border-gray-600">
-              <div className="flex items-center gap-3">
-                <img src={p.image_url} alt={p.title} className="w-12 h-12 rounded-lg object-cover bg-gray-600" />
-                <div className="flex-1">
-                  <p className="font-bold text-sm">{p.title}</p>
-                  <p className="text-xs text-gray-400">{p.price_usd} so'm • Qoldiq: {p.stock_count} ta</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {products.map(p => (
+              <div key={p.id} className="bg-gray-800 p-4 rounded-2xl shadow-lg border border-gray-700 relative flex flex-col justify-between">
+                <div className="flex items-center gap-3">
+                  <img src={p.image_url} alt={p.title} className="w-12 h-12 rounded-lg object-cover bg-gray-600" />
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg leading-tight">{p.title}</h3>
+                    <div className="flex gap-4 mt-2 text-sm text-gray-400">
+                      <p>Sotuv: <span className="text-blue-400 font-bold">{p.price_usd}</span></p>
+                      <p>Eski: <span className="line-through">{p.original_price}</span></p>
+                      <p>Qoldiq: <span className="text-green-400 font-bold">{p.stock_count}</span></p>
+                    </div>
+                    {p.promo_code && (
+                      <p className="text-xs text-purple-400 mt-1">🎟 Promokod: {p.promo_code} (-{p.promo_percent}%)</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button onClick={() => handleDelete(p.id, p.image_url)} className="flex-1 bg-red-600/20 text-red-400 py-2 rounded-lg hover:bg-red-600 hover:text-white transition font-bold text-sm">
+                    O'chirish
+                  </button>
+                  <button onClick={() => handleToggleStock(p.id, p.description)} className="flex-1 bg-gray-700 text-gray-300 py-2 rounded-lg hover:bg-gray-600 transition font-bold text-sm">
+                    {p.description === 'OUT_OF_STOCK' ? 'Sotuvga chiqarish' : 'Tugadi qilish'}
+                  </button>
                 </div>
               </div>
-              <div className="flex gap-2 mt-2">
-                <button onClick={() => handleToggleStock(p.id, p.description)} 
-                  className={`flex-1 p-2 rounded-lg text-sm font-semibold transition-colors ${p.description === 'OUT_OF_STOCK' ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30' : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'}`}>
-                  {p.description === 'OUT_OF_STOCK' ? 'Sotuvga qaytarish' : 'Tugadi deb belgilash'}
-                </button>
-                <button onClick={() => handleDelete(p.id, p.image_url)} 
-                  className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg text-sm font-semibold hover:bg-red-500/30 transition-colors">
-                  O'chirish 🗑️
-                </button>
-              </div>
-            </div>
-          ))}
-          {products.length === 0 && <p className="text-gray-400 text-sm">Hozircha mahsulotlar yo'q</p>}
+            ))}
+          </div>
         </div>
-      </div>
-        </>
+      </>
       )}
 
       {activeTab === 'orders' && (
@@ -312,6 +350,7 @@ export default function AdminPage() {
                       className={`text-sm font-bold px-3 py-1.5 rounded-lg outline-none ${order.status === 'Kutilmoqda' ? 'bg-orange-500/20 text-orange-400' : 'bg-green-500/20 text-green-400'}`}
                     >
                       <option value="Kutilmoqda" className="bg-gray-800 text-white">Kutilmoqda</option>
+                      <option value="To'lov qabul qilindi" className="bg-gray-800 text-white">To'lov qabul qilindi</option>
                       <option value="Yetkazilmoqda - Bugun" className="bg-gray-800 text-white">Yetkazilmoqda - Bugun</option>
                       <option value="Yetkazilmoqda - Ertaga" className="bg-gray-800 text-white">Yetkazilmoqda - Ertaga</option>
                       <option value="Yetkazib berildi" className="bg-gray-800 text-white">Yetkazib berildi</option>
@@ -333,6 +372,45 @@ export default function AdminPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {activeTab === 'reviews' && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold mb-4">⭐ Mijozlar sharhlari</h2>
+          {reviews.length === 0 ? <p className="text-gray-400">Sharhlar yo'q.</p> : (
+            reviews.map(r => (
+              <div key={r.id} className="bg-gray-800 p-5 rounded-2xl shadow-lg border border-gray-700">
+                <p className="font-bold text-yellow-500 mb-1">{'⭐'.repeat(r.rating || 5)}</p>
+                <p className="text-sm text-gray-400 mb-2">👤 {r.user_name} | 📦 {r.products?.title}</p>
+                <p className="text-white mb-4 bg-gray-700/50 p-3 rounded-xl">{r.text}</p>
+                
+                <div className="flex gap-2">
+                  <input type="text" placeholder="Javobingiz..." value={replyText[r.id] || r.admin_reply || ''} onChange={e => setReplyText({...replyText, [r.id]: e.target.value})} className="flex-1 bg-gray-700 rounded-lg p-2 outline-none focus:border-yellow-500 border border-transparent" />
+                  <button onClick={() => submitReply('reviews', r.id)} className="bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold">Javob berish</button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {activeTab === 'messages' && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold mb-4">🎧 Mijozlar murojaatlari</h2>
+          {messages.length === 0 ? <p className="text-gray-400">Murojaatlar yo'q.</p> : (
+            messages.map(m => (
+              <div key={m.id} className="bg-gray-800 p-5 rounded-2xl shadow-lg border border-gray-700">
+                <p className="text-sm text-gray-400 mb-2">👤 {m.user_name}</p>
+                <p className="text-white mb-4 bg-gray-700/50 p-3 rounded-xl">{m.text}</p>
+                
+                <div className="flex gap-2">
+                  <input type="text" placeholder="Javobingiz..." value={replyText[m.id] || m.admin_reply || ''} onChange={e => setReplyText({...replyText, [m.id]: e.target.value})} className="flex-1 bg-gray-700 rounded-lg p-2 outline-none focus:border-purple-500 border border-transparent" />
+                  <button onClick={() => submitReply('messages', m.id)} className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold">Javob berish</button>
                 </div>
               </div>
             ))

@@ -22,17 +22,19 @@ export default function Home() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [tgUser, setTgUser] = useState(null);
 
-  // Profile specific states
-  const [profileView, setProfileView] = useState('main'); // main, orders, reviews
+  const [profileView, setProfileView] = useState('main'); 
   const [myOrders, setMyOrders] = useState([]);
   const [myReviews, setMyReviews] = useState([]);
+  const [supportText, setSupportText] = useState('');
 
   // Checkout states
-  const [showCheckout, setShowCheckout] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState(0); // 0: yopiq, 1: malumotlar, 2: to'lov
   const [checkoutName, setCheckoutName] = useState('');
   const [checkoutPhone1, setCheckoutPhone1] = useState('');
   const [checkoutPhone2, setCheckoutPhone2] = useState('');
+  const [receiptFile, setReceiptFile] = useState(null);
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -73,10 +75,8 @@ export default function Home() {
     if (showLoading && products.length === 0) setLoading(true);
     
     try {
-      const { data: productsData, error: pError } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-      if (pError) throw pError;
-      
-      const { data: reviewsData, error: rError } = await supabase.from('reviews').select('*');
+      const { data: productsData } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+      const { data: reviewsData } = await supabase.from('reviews').select('*').catch(()=>null);
       
       if (productsData) {
         const combined = productsData.map(p => ({
@@ -86,15 +86,17 @@ export default function Home() {
         setProducts(combined);
       }
     } catch (e) {
-      console.error("Products error:", e);
+      console.error(e);
     }
     
     if (showLoading) setLoading(false);
   };
 
   const fetchReviews = async (productId) => {
-    const { data } = await supabase.from('reviews').select('*').eq('product_id', productId).order('created_at', { ascending: false });
-    if (data) setReviews(data);
+    try {
+      const { data } = await supabase.from('reviews').select('*').eq('product_id', productId).order('created_at', { ascending: false });
+      if (data) setReviews(data);
+    } catch(e) {}
   };
 
   const submitReview = async () => {
@@ -116,6 +118,22 @@ export default function Home() {
       fetchProducts(false);
       alert("Sharhingiz qoldirildi, rahmat!");
       if (profileView === 'reviews') loadMyReviews();
+    }
+  };
+
+  const submitSupport = async () => {
+    if (!supportText.trim()) return alert("Murojaat matnini yozing.");
+    try {
+      await supabase.from('messages').insert([{
+        user_id: tgUser?.id?.toString() || 'anonymous',
+        user_name: tgUser?.first_name || 'Mijoz',
+        text: supportText
+      }]);
+      alert("Murojaatingiz yuborildi! Tez orada javob qaytaramiz.");
+      setSupportText('');
+      setProfileView('main');
+    } catch (e) {
+      alert("Jo'natishda xatolik (SQL kodi bajarilmagan bo'lishi mumkin): " + e.message);
     }
   };
 
@@ -185,68 +203,101 @@ export default function Home() {
     setCart(cart.filter(item => item.cart_id !== cartId));
   };
 
-  const handleCheckoutSubmit = async () => {
+  const handleNextToPayment = () => {
     if (!checkoutName.trim() || !checkoutPhone1.trim() || !checkoutPhone2.trim()) {
       return alert("Iltimos, ism va har ikkala telefon raqamini to'ldiring!");
     }
+    setCheckoutStep(2);
+  };
 
-    const totalPrice = cart.reduce((sum, i) => sum + i.finalPrice, 0);
-    const orderDetailsStr = cart.map(item => `- ${item.title} (Razmer: ${item.selectedSize || 'yoq'}, Narxi: ${formatPrice(item.finalPrice)})`).join('\n');
-    const combinedPhone = `${checkoutPhone1}, Qo'shimcha: ${checkoutPhone2}`;
-
-    // Bazaga saqlash
-    await supabase.from('orders').insert([{
-      user_id: tgUser?.id?.toString() || 'anonymous',
-      user_name: checkoutName,
-      phone: combinedPhone,
-      product_details: cart,
-      total_price: totalPrice,
-      status: 'Kutilmoqda'
-    }]);
-
-    // Telegram Bot orqali to'g'ridan to'g'ri xabar jo'natish
-    const BOT_TOKEN = "8977055750:AAHvhnSZHJyJ0dqUhVIQjpp2UrE9udVgpYI";
-    const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || "5466728043").split(',');
-    const message = `🛍 <b>Yangi Buyurtma!</b>\n\n👤 Mijoz: ${checkoutName}\n📱 Tel: ${combinedPhone}\n\n📦 <b>Mahsulotlar:</b>\n${orderDetailsStr}\n\n💰 Jami: <b>${formatPrice(totalPrice)}</b>`;
-
-    for (const adminId of ADMIN_IDS) {
-      if (adminId.trim()) {
-        fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: adminId.trim(), text: message, parse_mode: 'HTML' })
-        }).catch(e => console.error(e));
-      }
+  const handleFinalCheckout = async () => {
+    if (!receiptFile) {
+      return alert("Iltimos, to'lov chekini (skrinshot) yuklang!");
     }
 
-    setCart([]);
-    setShowCheckout(false);
-    setCheckoutSuccess(true);
-    
-    setTimeout(() => {
-      setCheckoutSuccess(false);
-      setActiveTab('profile');
-      loadMyOrders();
-    }, 3000);
+    setIsSubmitting(true);
+    try {
+      const fileExt = receiptFile.name.split('.').pop();
+      const fileName = `receipt_${Math.random()}.${fileExt}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('product_images') // product_images dan vaqtincha foydalanamiz
+        .upload(fileName, receiptFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage.from('product_images').getPublicUrl(fileName);
+      const receiptUrl = publicUrlData.publicUrl;
+
+      const totalPrice = cart.reduce((sum, i) => sum + i.finalPrice, 0);
+      const orderDetailsStr = cart.map(item => `- ${item.title} (Razmer: ${item.selectedSize || 'yoq'}, Narxi: ${formatPrice(item.finalPrice)})`).join('\n');
+      const combinedPhone = `${checkoutPhone1}, Qo'shimcha: ${checkoutPhone2}`;
+
+      await supabase.from('orders').insert([{
+        user_id: tgUser?.id?.toString() || 'anonymous',
+        user_name: checkoutName,
+        phone: combinedPhone,
+        product_details: cart,
+        total_price: totalPrice,
+        status: 'Kutilmoqda'
+      }]);
+
+      const BOT_TOKEN = "8977055750:AAHvhnSZHJyJ0dqUhVIQjpp2UrE9udVgpYI";
+      const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || "5466728043").split(',');
+      const message = `🛍 <b>Yangi Buyurtma (To'lov cheki bilan)!</b>\n\n👤 Mijoz: ${checkoutName}\n📱 Tel: ${combinedPhone}\n\n📦 <b>Mahsulotlar:</b>\n${orderDetailsStr}\n\n💰 Jami: <b>${formatPrice(totalPrice)}</b> (50% to'lov qilingan)`;
+
+      for (const adminId of ADMIN_IDS) {
+        if (adminId.trim()) {
+          const formData = new FormData();
+          formData.append('chat_id', adminId.trim());
+          formData.append('photo', receiptFile);
+          formData.append('caption', message);
+          formData.append('parse_mode', 'HTML');
+          
+          fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+            method: 'POST',
+            body: formData
+          }).catch(e => console.error(e));
+        }
+      }
+
+      setCart([]);
+      setCheckoutStep(0);
+      setReceiptFile(null);
+      setCheckoutSuccess(true);
+      
+      setTimeout(() => {
+        setCheckoutSuccess(false);
+        setActiveTab('profile');
+        loadMyOrders();
+      }, 3000);
+    } catch (e) {
+      alert("Xatolik yuz berdi: " + e.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const loadMyOrders = async () => {
     setProfileView('orders');
     if (!tgUser) return;
-    const { data } = await supabase.from('orders').select('*').eq('user_id', tgUser.id.toString()).order('created_at', { ascending: false });
-    if (data) setMyOrders(data);
+    try {
+      const { data } = await supabase.from('orders').select('*').eq('user_id', tgUser.id.toString()).order('created_at', { ascending: false });
+      if (data) setMyOrders(data);
+    } catch(e){}
   };
 
   const loadMyReviews = async () => {
     setProfileView('reviews');
     if (!tgUser) return;
-    const { data } = await supabase.from('reviews').select('*, products(title, image_url)').eq('user_id', tgUser.id.toString()).order('created_at', { ascending: false });
-    if (data) setMyReviews(data);
+    try {
+      const { data } = await supabase.from('reviews').select('*, products(title, image_url)').eq('user_id', tgUser.id.toString()).order('created_at', { ascending: false });
+      if (data) setMyReviews(data);
+    } catch(e){}
   };
 
-  if (loading) return <div className="flex h-screen items-center justify-center bg-gray-50 text-indigo-500 font-bold">Yuklanmoqda...</div>;
+  if (loading) return <div className="flex h-screen items-center justify-center bg-gray-50 text-purple-500 font-bold">Yuklanmoqda...</div>;
 
-  // QABUL QILINDI EKRANI
   if (checkoutSuccess) {
     return (
       <div className="flex flex-col h-screen items-center justify-center bg-green-50 animate-fade-in px-6 text-center">
@@ -254,7 +305,7 @@ export default function Home() {
           ✓
         </div>
         <h1 className="text-4xl font-black text-green-600 mb-2">Qabul qilindi!</h1>
-        <p className="text-gray-600 font-medium">Buyurtmangiz muvaffaqiyatli rasmiylashtirildi. Tez orada bog'lanamiz.</p>
+        <p className="text-gray-600 font-medium">Buyurtma muvaffaqiyatli rasmiylashtirildi. Tez orada bog'lanamiz.</p>
       </div>
     );
   }
@@ -362,7 +413,7 @@ export default function Home() {
                     <span>Jami:</span>
                     <span>{formatPrice(cart.reduce((sum, i) => sum + i.finalPrice, 0))}</span>
                   </div>
-                  <button onClick={() => setShowCheckout(true)} className="w-full bg-purple-600 text-white font-bold py-3 rounded-xl active:scale-95 transition-transform">
+                  <button onClick={() => setCheckoutStep(1)} className="w-full bg-purple-600 text-white font-bold py-3 rounded-xl active:scale-95 transition-transform">
                     Rasmiylashtirish
                   </button>
                 </div>
@@ -387,12 +438,31 @@ export default function Home() {
                 <span className="text-gray-400">›</span>
               </button>
               <button onClick={loadMyReviews} className="w-full bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50">
-                <span className="font-semibold text-gray-700">💬 Sharhlarim</span>
+                <span className="font-semibold text-gray-700">💬 Sharhlar</span>
                 <span className="text-gray-400">›</span>
               </button>
-              <button onClick={() => alert('Tez kunda!')} className="w-full bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50">
+              <button onClick={() => setProfileView('support')} className="w-full bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50">
                 <span className="font-semibold text-gray-700">🎧 Sotuvchiga murojaat</span>
                 <span className="text-gray-400">›</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'profile' && profileView === 'support' && (
+          <div className="p-4">
+            <button onClick={() => setProfileView('main')} className="mb-4 text-purple-600 font-bold flex items-center gap-1">
+              <span>‹</span> Orqaga
+            </button>
+            <h2 className="text-xl font-bold mb-4">🎧 Sotuvchiga Murojaat</h2>
+            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+              <p className="text-sm text-gray-600 mb-4">Savollaringiz yoki takliflaringizni yozib qoldiring. Biz imkon qadar tezroq javob beramiz.</p>
+              <textarea value={supportText} onChange={e => setSupportText(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:border-purple-500 h-32 mb-3"
+                placeholder="Xabaringizni yozing..."
+              ></textarea>
+              <button onClick={submitSupport} className="w-full bg-purple-600 text-white font-bold py-3 rounded-xl active:scale-95 transition-transform">
+                Jo'natish
               </button>
             </div>
           </div>
@@ -450,7 +520,7 @@ export default function Home() {
             <button onClick={() => setProfileView('main')} className="mb-4 text-purple-600 font-bold flex items-center gap-1">
               <span>‹</span> Orqaga
             </button>
-            <h2 className="text-xl font-bold mb-4">💬 Mening Sharhlarim</h2>
+            <h2 className="text-xl font-bold mb-4">💬 Sharhlar</h2>
             
             {myReviews.length === 0 ? (
               <p className="text-gray-500 text-center mt-10">Sizda hali sharhlar yo'q.</p>
@@ -466,6 +536,12 @@ export default function Home() {
                       </div>
                     </div>
                     <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded-lg">{review.text}</p>
+                    {review.admin_reply && (
+                      <div className="mt-2 ml-4 p-2 bg-purple-50 rounded-lg border-l-4 border-purple-400">
+                        <p className="text-xs font-bold text-purple-600">Admin javobi:</p>
+                        <p className="text-sm text-gray-700">{review.admin_reply}</p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -491,13 +567,13 @@ export default function Home() {
         </button>
       </div>
 
-      {/* CHECKOUT MODAL */}
-      {showCheckout && (
+      {/* CHECKOUT MODALS */}
+      {checkoutStep === 1 && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-sm rounded-3xl p-6 relative">
-            <button onClick={() => setShowCheckout(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
-            <h2 className="text-2xl font-bold mb-4">Rasmiylashtirish</h2>
-            <p className="text-gray-500 text-sm mb-4">Buyurtmani yakunlash uchun ma'lumotlaringizni kiriting:</p>
+            <button onClick={() => setCheckoutStep(0)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            <h2 className="text-2xl font-bold mb-4">Rasmiylashtirish (1/2)</h2>
+            <p className="text-gray-500 text-sm mb-4">Ma'lumotlaringizni kiriting:</p>
             
             <div className="space-y-4 mb-6">
               <div>
@@ -514,9 +590,44 @@ export default function Home() {
               </div>
             </div>
             
-            <button onClick={handleCheckoutSubmit} className="w-full bg-purple-600 text-white font-bold py-4 rounded-2xl active:scale-95 transition-transform shadow-lg shadow-purple-200">
-              Buyurtma berish
+            <button onClick={handleNextToPayment} className="w-full bg-purple-600 text-white font-bold py-4 rounded-2xl active:scale-95 transition-transform shadow-lg shadow-purple-200">
+              Keyingi qadam
             </button>
+          </div>
+        </div>
+      )}
+
+      {checkoutStep === 2 && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 relative">
+            <button onClick={() => setCheckoutStep(0)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            <h2 className="text-2xl font-bold mb-2">To'lov (2/2)</h2>
+            <p className="text-red-500 font-bold text-sm mb-4">50% to'lov qilganingizdan keyin rasmiylashtiriladi.</p>
+            
+            <div className="bg-gray-100 p-4 rounded-xl mb-4 border border-gray-200">
+              <p className="text-xs text-gray-500 mb-1">Karta raqami (Kopiya qilish uchun bosing):</p>
+              <div 
+                onClick={() => { navigator.clipboard.writeText('4916990320547877'); alert("Kopiya qilindi!"); }}
+                className="font-mono text-lg font-bold text-purple-700 cursor-pointer bg-purple-50 p-2 rounded-lg text-center active:scale-95 transition flex justify-center items-center gap-2"
+              >
+                4916 9903 2054 7877 <span className="text-xl">📋</span>
+              </div>
+              <p className="text-center font-bold text-sm mt-2">Mamadolimov Jo'rabek</p>
+            </div>
+
+            <div className="mb-6">
+              <label className="text-sm font-bold text-gray-700 block mb-2">To'lov chekini yuklang (Skrinshot):</label>
+              <input type="file" accept="image/*" onChange={(e) => setReceiptFile(e.target.files[0])} className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none" />
+            </div>
+            
+            <div className="flex gap-2">
+              <button onClick={() => setCheckoutStep(1)} className="flex-1 bg-gray-200 text-gray-700 font-bold py-4 rounded-2xl active:scale-95 transition-transform">
+                Orqaga
+              </button>
+              <button disabled={isSubmitting} onClick={handleFinalCheckout} className={`flex-1 ${isSubmitting ? 'bg-gray-400' : 'bg-green-500'} text-white font-bold py-4 rounded-2xl active:scale-95 transition-transform shadow-lg`}>
+                {isSubmitting ? 'Kuting...' : 'Jo\'natish'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -618,6 +729,12 @@ export default function Home() {
                             <span className="text-yellow-500 text-xs">{'⭐'.repeat(r.rating || 5)}</span>
                           </div>
                           <p className="text-gray-600 text-sm">{r.text}</p>
+                          {r.admin_reply && (
+                            <div className="mt-2 ml-4 p-2 bg-purple-50 rounded-lg border-l-4 border-purple-400">
+                              <p className="text-xs font-bold text-purple-600">Admin javobi:</p>
+                              <p className="text-sm text-gray-700">{r.admin_reply}</p>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
