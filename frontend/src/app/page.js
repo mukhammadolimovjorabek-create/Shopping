@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import Link from 'next/link';
 
@@ -17,26 +17,47 @@ export default function Home() {
   const [reviews, setReviews] = useState([]);
   const [ratingInput, setRatingInput] = useState(5);
   const [reviewInput, setReviewInput] = useState('');
+  const reviewInputRef = useRef(null);
   
   const [isAdmin, setIsAdmin] = useState(false);
   const [tgUser, setTgUser] = useState(null);
+
+  // Profile specific states
+  const [profileView, setProfileView] = useState('main'); // main, orders, reviews
+  const [myOrders, setMyOrders] = useState([]);
+  const [myReviews, setMyReviews] = useState([]);
+
+  // Checkout states
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [checkoutName, setCheckoutName] = useState('');
+  const [checkoutPhone1, setCheckoutPhone1] = useState('');
+  const [checkoutPhone2, setCheckoutPhone2] = useState('');
+  const [checkoutSuccess, setCheckoutSuccess] = useState(false);
 
   useEffect(() => {
     fetchProducts();
     checkUser();
     
-    // Auto-Refresh (Realtime) har 3 soniyada
     const interval = setInterval(() => {
       fetchProducts(false);
     }, 3000);
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (activeTab === 'profile') {
+      setProfileView('main');
+    }
+  }, [activeTab]);
+
   const checkUser = () => {
     const check = () => {
       if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
         const user = window.Telegram.WebApp.initDataUnsafe?.user;
-        if (user) setTgUser(user);
+        if (user) {
+          setTgUser(user);
+          setCheckoutName(user.first_name + (user.last_name ? ' ' + user.last_name : ''));
+        }
         
         const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || '5466728043').split(',');
         if (user && ADMIN_IDS.includes(user.id.toString())) {
@@ -50,7 +71,6 @@ export default function Home() {
 
   const fetchProducts = async (showLoading = true) => {
     if (showLoading && products.length === 0) setLoading(true);
-    // Fetch products along with their reviews to calculate average ratings
     const { data } = await supabase.from('products').select('*, reviews(rating)').order('created_at', { ascending: false });
     if (data) setProducts(data);
     if (showLoading) setLoading(false);
@@ -75,7 +95,8 @@ export default function Home() {
     if (!error) {
       setReviewInput('');
       fetchReviews(selectedProduct.id);
-      fetchProducts(false); // Update averages on home page
+      fetchProducts(false);
+      alert("Sharhingiz qoldirildi, rahmat!");
     }
   };
 
@@ -141,28 +162,92 @@ export default function Home() {
     setCart(cart.filter(item => item.cart_id !== cartId));
   };
 
-  const checkout = async () => {
-    if (cart.length === 0) return alert("Savatingiz bo'sh!");
-    alert("Buyurtmangiz qabul qilindi! Tez orada siz bilan bog'lanamiz.");
+  const handleCheckoutSubmit = async () => {
+    if (!checkoutName.trim() || !checkoutPhone1.trim() || !checkoutPhone2.trim()) {
+      return alert("Iltimos, ism va har ikkala telefon raqamini to'ldiring!");
+    }
+
+    const totalPrice = cart.reduce((sum, i) => sum + i.finalPrice, 0);
+    const orderDetailsStr = cart.map(item => `- ${item.title} (Razmer: ${item.selectedSize || 'yoq'}, Narxi: ${formatPrice(item.finalPrice)})`).join('\n');
+    const combinedPhone = `${checkoutPhone1}, Qo'shimcha: ${checkoutPhone2}`;
+
+    // Bazaga saqlash
+    await supabase.from('orders').insert([{
+      user_id: tgUser?.id?.toString() || 'anonymous',
+      user_name: checkoutName,
+      phone: combinedPhone,
+      product_details: cart,
+      total_price: totalPrice,
+      status: 'Kutilmoqda'
+    }]);
+
+    // Adminga bildirishnoma yuborish
+    try {
+      await fetch('/api/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: checkoutName,
+          customerPhone: combinedPhone,
+          orderDetails: orderDetailsStr,
+          receiptUrl: ''
+        })
+      });
+    } catch(e) {}
+
     setCart([]);
-    setActiveTab('home');
+    setShowCheckout(false);
+    setCheckoutSuccess(true);
+    
+    setTimeout(() => {
+      setCheckoutSuccess(false);
+      setActiveTab('profile');
+      loadMyOrders();
+    }, 3000);
+  };
+
+  const loadMyOrders = async () => {
+    setProfileView('orders');
+    if (!tgUser) return;
+    const { data } = await supabase.from('orders').select('*').eq('user_id', tgUser.id.toString()).order('created_at', { ascending: false });
+    if (data) setMyOrders(data);
+  };
+
+  const loadMyReviews = async () => {
+    setProfileView('reviews');
+    if (!tgUser) return;
+    const { data } = await supabase.from('reviews').select('*, products(title, image_url)').eq('user_id', tgUser.id.toString()).order('created_at', { ascending: false });
+    if (data) setMyReviews(data);
   };
 
   if (loading) return <div className="flex h-screen items-center justify-center bg-gray-50 text-indigo-500 font-bold">Yuklanmoqda...</div>;
 
+  // QABUL QILINDI EKRANI
+  if (checkoutSuccess) {
+    return (
+      <div className="flex flex-col h-screen items-center justify-center bg-green-50 animate-fade-in px-6 text-center">
+        <div className="w-24 h-24 bg-green-500 text-white rounded-full flex items-center justify-center text-5xl shadow-xl shadow-green-200 mb-6 animate-bounce">
+          ✓
+        </div>
+        <h1 className="text-4xl font-black text-green-600 mb-2">Qabul qilindi!</h1>
+        <p className="text-gray-600 font-medium">Buyurtmangiz muvaffaqiyatli rasmiylashtirildi. Tez orada bog'lanamiz.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden">
+    <div className="flex flex-col h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden relative">
       
       <div className="bg-white px-4 py-3 flex justify-between items-center shadow-sm z-10">
         <div>
-          <h1 className="text-xl font-extrabold text-indigo-600 tracking-tight flex items-center gap-1">
-            Omni<span className="text-black">Shop</span>
+          <h1 className="text-2xl font-extrabold tracking-tight flex items-center gap-0.5">
+            <span className="text-purple-600">Omni</span><span className="text-orange-500">Shop</span>
           </h1>
           <p className="text-[10px] text-gray-500 font-medium">Xitoydan to'g'ridan-to'g'ri 🇨🇳</p>
         </div>
         
         {isAdmin && (
-          <Link href="/admin" className="w-9 h-9 bg-indigo-500 rounded-full shadow-md flex items-center justify-center text-white text-xl font-light hover:bg-indigo-600 transition-colors pb-1">
+          <Link href="/admin" className="w-9 h-9 bg-purple-600 rounded-full shadow-md flex items-center justify-center text-white text-xl font-light hover:bg-purple-700 transition-colors pb-1">
             +
           </Link>
         )}
@@ -240,7 +325,7 @@ export default function Home() {
                     <div className="flex-1">
                       <p className="font-semibold text-sm leading-tight">{item.title}</p>
                       {item.selectedSize && <p className="text-xs text-gray-500 mt-1">O'lcham: {item.selectedSize}</p>}
-                      <p className="font-bold text-indigo-600 mt-1">{formatPrice(item.finalPrice)}</p>
+                      <p className="font-bold text-purple-600 mt-1">{formatPrice(item.finalPrice)}</p>
                     </div>
                     <button onClick={() => removeFromCart(item.cart_id)} className="absolute top-2 right-2 p-2 text-gray-400 hover:text-red-500">
                       ✕
@@ -248,12 +333,12 @@ export default function Home() {
                   </div>
                 ))}
                 
-                <div className="bg-white p-4 rounded-2xl shadow-sm mt-4 border-t-2 border-indigo-50">
+                <div className="bg-white p-4 rounded-2xl shadow-sm mt-4 border-t-2 border-purple-50">
                   <div className="flex justify-between font-bold text-lg mb-4">
                     <span>Jami:</span>
                     <span>{formatPrice(cart.reduce((sum, i) => sum + i.finalPrice, 0))}</span>
                   </div>
-                  <button onClick={checkout} className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl active:scale-95 transition-transform">
+                  <button onClick={() => setShowCheckout(true)} className="w-full bg-purple-600 text-white font-bold py-3 rounded-xl active:scale-95 transition-transform">
                     Rasmiylashtirish
                   </button>
                 </div>
@@ -262,10 +347,10 @@ export default function Home() {
           </div>
         )}
 
-        {activeTab === 'profile' && (
+        {activeTab === 'profile' && profileView === 'main' && (
           <div className="p-4">
             <div className="bg-white p-6 rounded-3xl shadow-sm text-center mb-4">
-              <div className="w-20 h-20 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-3xl font-bold mx-auto mb-3">
+              <div className="w-20 h-20 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-3xl font-bold mx-auto mb-3">
                 {tgUser ? tgUser.first_name[0] : 'U'}
               </div>
               <h2 className="text-xl font-bold">{tgUser ? tgUser.first_name : 'Foydalanuvchi'}</h2>
@@ -273,15 +358,15 @@ export default function Home() {
             </div>
 
             <div className="space-y-2">
-              <button className="w-full bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50">
+              <button onClick={loadMyOrders} className="w-full bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50">
                 <span className="font-semibold text-gray-700">📦 Buyurtmalarim</span>
                 <span className="text-gray-400">›</span>
               </button>
-              <button className="w-full bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50">
+              <button onClick={loadMyReviews} className="w-full bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50">
                 <span className="font-semibold text-gray-700">💬 Sharhlarim</span>
                 <span className="text-gray-400">›</span>
               </button>
-              <button className="w-full bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50">
+              <button onClick={() => alert('Tez kunda!')} className="w-full bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50">
                 <span className="font-semibold text-gray-700">🎧 Sotuvchiga murojaat</span>
                 <span className="text-gray-400">›</span>
               </button>
@@ -289,24 +374,130 @@ export default function Home() {
           </div>
         )}
 
+        {activeTab === 'profile' && profileView === 'orders' && (
+          <div className="p-4">
+            <button onClick={() => setProfileView('main')} className="mb-4 text-purple-600 font-bold flex items-center gap-1">
+              <span>‹</span> Orqaga
+            </button>
+            <h2 className="text-xl font-bold mb-4">📦 Mening Buyurtmalarim</h2>
+            
+            {myOrders.length === 0 ? (
+              <p className="text-gray-500 text-center mt-10">Sizda hali buyurtmalar yo'q.</p>
+            ) : (
+              <div className="space-y-4">
+                {myOrders.map(order => (
+                  <div key={order.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                    <div className="flex justify-between items-center mb-3 pb-3 border-b border-gray-100">
+                      <span className="text-sm text-gray-500">{new Date(order.created_at).toLocaleDateString()}</span>
+                      <span className={`text-xs font-bold px-2 py-1 rounded-md ${order.status === 'Kutilmoqda' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
+                        {order.status}
+                      </span>
+                    </div>
+                    <div className="space-y-3 mb-3">
+                      {order.product_details.map((item, idx) => (
+                        <div key={idx} className="flex gap-3">
+                          <img src={item.image_url} className="w-12 h-12 object-cover rounded-lg bg-gray-100" />
+                          <div className="flex-1">
+                            <p className="text-sm font-bold leading-tight line-clamp-1">{item.title}</p>
+                            <p className="text-xs text-gray-500">Razmer: {item.selectedSize || 'yoq'}</p>
+                          </div>
+                          <button onClick={() => {
+                            const prod = products.find(p => p.id === item.id);
+                            if (prod) openProduct(prod);
+                            else alert('Bu mahsulot hozirda sotuvda yo\'q');
+                          }} className="text-xs font-bold text-purple-600 bg-purple-50 px-2 rounded-lg h-8 self-center border border-purple-100">
+                            Sharh yozish
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="text-right font-bold text-gray-800">
+                      Jami: {formatPrice(order.total_price)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'profile' && profileView === 'reviews' && (
+          <div className="p-4">
+            <button onClick={() => setProfileView('main')} className="mb-4 text-purple-600 font-bold flex items-center gap-1">
+              <span>‹</span> Orqaga
+            </button>
+            <h2 className="text-xl font-bold mb-4">💬 Mening Sharhlarim</h2>
+            
+            {myReviews.length === 0 ? (
+              <p className="text-gray-500 text-center mt-10">Sizda hali sharhlar yo'q.</p>
+            ) : (
+              <div className="space-y-3">
+                {myReviews.map(review => (
+                  <div key={review.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                    <div className="flex items-center gap-3 mb-2">
+                      <img src={review.products?.image_url} className="w-10 h-10 object-cover rounded-lg" />
+                      <div>
+                        <p className="text-sm font-bold leading-tight">{review.products?.title}</p>
+                        <span className="text-yellow-500 text-xs">{'⭐'.repeat(review.rating || 5)}</span>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded-lg">{review.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
 
       <div className="absolute bottom-0 w-full bg-white border-t border-gray-200 px-6 py-3 flex justify-between items-center pb-safe">
-        <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 ${activeTab === 'home' ? 'text-indigo-600' : 'text-gray-400'}`}>
+        <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 ${activeTab === 'home' ? 'text-purple-600' : 'text-gray-400'}`}>
           <span className="text-2xl">🏠</span>
           <span className="text-[10px] font-bold">Asosiy</span>
         </button>
-        <button onClick={() => setActiveTab('cart')} className={`flex flex-col items-center gap-1 relative ${activeTab === 'cart' ? 'text-indigo-600' : 'text-gray-400'}`}>
+        <button onClick={() => setActiveTab('cart')} className={`flex flex-col items-center gap-1 relative ${activeTab === 'cart' ? 'text-purple-600' : 'text-gray-400'}`}>
           <span className="text-2xl">🛒</span>
           {cart.length > 0 && <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">{cart.length}</span>}
           <span className="text-[10px] font-bold">Savat</span>
         </button>
-        <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center gap-1 ${activeTab === 'profile' ? 'text-indigo-600' : 'text-gray-400'}`}>
+        <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center gap-1 ${activeTab === 'profile' ? 'text-purple-600' : 'text-gray-400'}`}>
           <span className="text-2xl">👤</span>
           <span className="text-[10px] font-bold">Profil</span>
         </button>
       </div>
 
+      {/* CHECKOUT MODAL */}
+      {showCheckout && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 relative">
+            <button onClick={() => setShowCheckout(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            <h2 className="text-2xl font-bold mb-4">Rasmiylashtirish</h2>
+            <p className="text-gray-500 text-sm mb-4">Buyurtmani yakunlash uchun ma'lumotlaringizni kiriting:</p>
+            
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="text-xs font-bold text-gray-600 mb-1 block">Ism-familiya *</label>
+                <input type="text" value={checkoutName} onChange={e=>setCheckoutName(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-purple-500" placeholder="Ali Valiyev" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-600 mb-1 block">Asosiy nomer *</label>
+                <input type="tel" value={checkoutPhone1} onChange={e=>setCheckoutPhone1(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-purple-500" placeholder="+998 90 123 45 67" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-600 mb-1 block">Qo'shimcha nomer *</label>
+                <input type="tel" value={checkoutPhone2} onChange={e=>setCheckoutPhone2(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-purple-500" placeholder="+998 90 765 43 21" />
+              </div>
+            </div>
+            
+            <button onClick={handleCheckoutSubmit} className="w-full bg-purple-600 text-white font-bold py-4 rounded-2xl active:scale-95 transition-transform shadow-lg shadow-purple-200">
+              Buyurtma berish
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* PRODUCT MODAL */}
       {selectedProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 flex flex-col justify-end">
           <div className="bg-white w-full h-[90%] rounded-t-3xl flex flex-col relative animate-slide-up overflow-hidden">
@@ -333,7 +524,7 @@ export default function Home() {
                 <h2 className="text-3xl font-extrabold text-gray-900 mb-2">
                   {appliedPromo ? (
                     <div className="flex items-baseline gap-2">
-                      <span className="text-indigo-600">{formatPrice(selectedProduct.price_usd - (selectedProduct.price_usd * appliedPromo / 100))}</span>
+                      <span className="text-purple-600">{formatPrice(selectedProduct.price_usd - (selectedProduct.price_usd * appliedPromo / 100))}</span>
                     </div>
                   ) : (
                     formatPrice(selectedProduct.price_usd)
@@ -352,7 +543,7 @@ export default function Home() {
                     <div className="flex gap-2 flex-wrap">
                       {selectedProduct.sizes.split(',').map(size => size.trim()).map(size => (
                         <button key={size} onClick={() => setSelectedSize(size)}
-                          className={`px-4 py-2 rounded-xl border-2 font-bold transition-all ${selectedSize === size ? 'border-indigo-600 text-indigo-600 bg-indigo-50' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                          className={`px-4 py-2 rounded-xl border-2 font-bold transition-all ${selectedSize === size ? 'border-purple-600 text-purple-600 bg-purple-50' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
                           {size}
                         </button>
                       ))}
@@ -364,18 +555,16 @@ export default function Home() {
                   <h4 className="font-bold mb-3 text-gray-800">Promokod</h4>
                   <div className="flex gap-2">
                     <input type="text" value={promoInput} onChange={e => setPromoInput(e.target.value)}
-                      placeholder="Kodni kiriting" className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-2 outline-none focus:border-indigo-500 uppercase" />
+                      placeholder="Kodni kiriting" className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-2 outline-none focus:border-purple-500 uppercase" />
                     <button onClick={applyPromo} className="bg-black text-white px-5 py-2 rounded-xl font-bold active:scale-95 transition-transform">
                       Qo'llash
                     </button>
                   </div>
                 </div>
 
-                {/* YULDUZCHA VA SHARHLAR */}
                 <div className="mt-8 border-t pt-6">
                   <h4 className="font-bold text-xl mb-4">Sharhlar ({reviews.length})</h4>
                   
-                  {/* Sharh yozish */}
                   <div className="bg-gray-50 p-4 rounded-2xl mb-4">
                     <p className="text-sm font-bold mb-2">Baholang:</p>
                     <div className="flex gap-2 mb-3">
@@ -385,14 +574,17 @@ export default function Home() {
                         </button>
                       ))}
                     </div>
-                    <textarea value={reviewInput} onChange={e => setReviewInput(e.target.value)}
-                      placeholder="Mahsulot haqida fikringiz..." className="w-full bg-white border border-gray-200 rounded-xl p-3 outline-none focus:border-indigo-500 h-24 mb-2"></textarea>
-                    <button onClick={submitReview} className="w-full bg-indigo-100 text-indigo-700 font-bold py-2 rounded-xl">Jo'natish</button>
+                    <textarea ref={reviewInputRef} value={reviewInput} onChange={e => setReviewInput(e.target.value)}
+                      placeholder="Mahsulot haqida fikringiz..." className="w-full bg-white border border-gray-200 rounded-xl p-3 outline-none focus:border-purple-500 h-24 mb-2"></textarea>
+                    <button onClick={submitReview} className="w-full bg-purple-100 text-purple-700 font-bold py-2 rounded-xl">Jo'natish</button>
                   </div>
 
-                  {/* Sharhlar ro'yxati */}
                   {reviews.length === 0 ? (
-                    <div className="text-center text-gray-500 py-6">Hali sharhlar yo'q. Birinchi bo'lib yozing!</div>
+                    <div className="text-center text-gray-500 py-6">
+                      <p className="text-3xl mb-2">💬</p>
+                      <p>Hozircha sharhlar yo'q.</p>
+                      <button onClick={() => reviewInputRef.current?.focus()} className="mt-3 text-purple-600 font-bold">Sharh yozish</button>
+                    </div>
                   ) : (
                     <div className="space-y-3">
                       {reviews.map(r => (
@@ -411,7 +603,7 @@ export default function Home() {
             </div>
 
             <div className="absolute bottom-0 w-full bg-white p-4 border-t border-gray-100 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
-              <button onClick={addToCart} className="w-full bg-indigo-600 text-white text-lg font-bold py-4 rounded-2xl active:scale-95 transition-transform shadow-lg shadow-indigo-200">
+              <button onClick={addToCart} className="w-full bg-purple-600 text-white text-lg font-bold py-4 rounded-2xl active:scale-95 transition-transform shadow-lg shadow-purple-200">
                 Savatga qo'shish
               </button>
             </div>
@@ -427,6 +619,11 @@ export default function Home() {
           to { transform: translateY(0); }
         }
         .animate-slide-up { animation: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .animate-fade-in { animation: fade-in 0.4s ease-out forwards; }
       `}</style>
     </div>
   );

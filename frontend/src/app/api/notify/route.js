@@ -17,17 +17,30 @@ export async function POST(req) {
     for (const adminId of ADMIN_IDS) {
       if (!adminId.trim()) continue;
       
-      // Send Photo with caption
-      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: adminId.trim(),
-          photo: receiptUrl,
-          caption: message,
-          parse_mode: 'HTML'
-        })
-      });
+      if (receiptUrl) {
+        // Send Photo with caption
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: adminId.trim(),
+            photo: receiptUrl,
+            caption: message,
+            parse_mode: 'HTML'
+          })
+        });
+      } else {
+        // Send Text message
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: adminId.trim(),
+            text: message,
+            parse_mode: 'HTML'
+          })
+        });
+      }
     }
 
     return NextResponse.json({ success: true });
