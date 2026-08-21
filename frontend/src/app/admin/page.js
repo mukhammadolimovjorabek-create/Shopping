@@ -69,7 +69,7 @@ export default function AdminPage() {
   };
 
   const fetchOrders = async () => {
-    const { data } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
+    const { data } = await supabase.from('orders').select('*, users(full_name, phone_number), products(title)').order('created_at', { ascending: false });
     if (data) setOrders(data);
   };
 
@@ -408,16 +408,16 @@ export default function AdminPage() {
               <div key={order.id} className="bg-gray-800 p-5 rounded-2xl shadow-lg border border-gray-700">
                 <div className="flex justify-between items-start mb-4 border-b border-gray-700 pb-4">
                   <div>
-                    <h3 className="text-lg font-bold text-white">👤 {order.user_name}</h3>
+                    <h3 className="text-lg font-bold text-white">👤 {order.users?.full_name || 'Noma\'lum'}</h3>
                     <p className="text-sm text-gray-400 mt-1">📱 {order.phone}</p>
                     <p className="text-xs text-gray-500 mt-1">🕒 {new Date(order.created_at).toLocaleString()}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-bold text-green-400 mb-2">{order.total_price.toLocaleString('ru-RU')} so'm</p>
+                    <p className="text-lg font-bold text-green-400 mb-2">{Number(order.total_price_uzs).toLocaleString('ru-RU')} so'm</p>
                     <select 
                       value={order.status}
                       onChange={(e) => updateOrderStatus(order.id, e.target.value)}
-                      className={`text-sm font-bold px-3 py-1.5 rounded-lg outline-none ${order.status === 'Kutilmoqda' ? 'bg-orange-500/20 text-orange-400' : 'bg-green-500/20 text-green-400'}`}
+                      className={`text-sm font-bold px-3 py-1.5 rounded-lg outline-none ${order.status === 'Tekshirilmoqda' ? 'bg-orange-500/20 text-orange-400' : 'bg-green-500/20 text-green-400'}`}
                     >
                       <option value="Kutilmoqda" className="bg-gray-800 text-white">Kutilmoqda</option>
                       <option value="To'lov qabul qilindi" className="bg-gray-800 text-white">To'lov qabul qilindi</option>

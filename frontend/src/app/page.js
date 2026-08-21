@@ -27,8 +27,8 @@ export default function Home() {
       "Jami:": { ru: "Итого:", en: "Total:", uz: "Jami:" },
       "Rasmiylashtirish": { ru: "Оформить заказ", en: "Checkout", uz: "Rasmiylashtirish" },
       "Buyurtmalarim": { ru: "Мои заказы", en: "My Orders", uz: "Buyurtmalarim" },
-      "Sharhlarim": { ru: "Мои отзывы", en: "My Reviews", uz: "Sharhlarim" },
-      "Sotuvchiga murojaat": { ru: "Связаться с продавцом", en: "Contact Seller", uz: "Sotuvchiga murojaat" },
+      "Sharhlar": { ru: "Отзывы", en: "Reviews", uz: "Sharhlar" },
+      "Murojaatlarim": { ru: "Мои обращения", en: "My Requests", uz: "Murojaatlarim" },
       "Sozlamalar": { ru: "Настройки", en: "Settings", uz: "Sozlamalar" },
       "Orqaga": { ru: "Назад", en: "Back", uz: "Orqaga" },
       "Tilni o'zgartirish": { ru: "Изменить язык", en: "Change Lang", uz: "Tilni o'zgartirish" },
@@ -183,7 +183,7 @@ export default function Home() {
       user_id: tgUser?.id?.toString() || 'anonymous',
       user_name: profileName || 'Mijoz',
       text: reviewInput,
-      rating: ratingInput
+      likes: ratingInput
     }]);
 
     if (error && error.message.includes('rating')) {
@@ -336,14 +336,27 @@ export default function Home() {
       const orderDetailsStr = cart.map(item => `- ${item.title} (Razmer: ${item.selectedSize || 'yoq'}, Narxi: ${formatPrice(item.finalPrice)})`).join('\n');
       const combinedPhone = `${checkoutPhone1}, Qo'shimcha: ${checkoutPhone2}`;
 
-      await supabase.from('orders').insert([{
-        user_id: tgUser?.id?.toString() || 'anonymous',
-        user_name: checkoutName,
-        phone: combinedPhone,
-        product_details: cart,
-        total_price: totalPrice,
-        status: 'Kutilmoqda'
-      }]);
+      // Upsert user to get UUID
+      const { data: userRow, error: uErr } = await supabase.from('users').upsert({ 
+        telegram_id: tgUser?.id || Math.floor(Math.random() * 1000000000), 
+        full_name: checkoutName, 
+        phone_number: combinedPhone 
+      }, { onConflict: 'telegram_id' }).select('*').single();
+      
+      if (userRow) {
+        const ordersToInsert = cart.map(item => ({
+          user_id: userRow.id,
+          product_id: item.id,
+          size: item.selectedSize || '-',
+          color: '-',
+          total_price_uzs: item.finalPrice,
+          pre_payment_amount_uzs: 0,
+          status: 'Tekshirilmoqda',
+          receipt_image_url: receiptUrl
+        }));
+        const { error: oErr } = await supabase.from('orders').insert(ordersToInsert);
+        if (oErr) console.error("Order Insert Error:", oErr);
+      }
 
       const BOT_TOKEN = "8977055750:AAHvhnSZHJyJ0dqUhVIQjpp2UrE9udVgpYI";
       const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || "5466728043").split(',');
