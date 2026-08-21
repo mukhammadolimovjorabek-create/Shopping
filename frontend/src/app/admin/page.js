@@ -76,7 +76,7 @@ export default function AdminPage() {
 
   const fetchReviews = async () => {
     try {
-      const { data } = await supabase.from('reviews').select('*, products(title)').order('created_at', { ascending: false });
+      const { data } = await supabase.from('reviews').select('*').order('created_at', { ascending: false });
       if (data) setReviews(data);
     } catch(e){}
   };
