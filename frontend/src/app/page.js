@@ -517,7 +517,7 @@ export default function Home() {
   }
 
   return (
-    <div data-theme={theme} className={`omni-app flex flex-col h-screen text-gray-900 font-sans overflow-hidden relative ${activeTab === 'home' ? 'bg-[url("https://www.transparenttextures.com/patterns/cubes.png")] bg-gradient-to-br from-purple-50 via-gray-50 to-orange-50' : activeTab === 'cart' ? 'bg-[url("https://www.transparenttextures.com/patterns/diagonal-stripes.png")] bg-gradient-to-tr from-blue-50 to-purple-50' : 'bg-[url("https://www.transparenttextures.com/patterns/stardust.png")] bg-gradient-to-bl from-orange-50 to-red-50'} bg-fixed`}>
+    <div data-theme={theme} className="omni-app flex flex-col h-screen text-gray-900 dark:text-gray-100 font-sans overflow-hidden relative bg-gray-50 dark:bg-[#0a0a0a] transition-colors">
       
       <div className="bg-white px-4 py-3 flex justify-between items-center shadow-sm z-10">
         <div>
