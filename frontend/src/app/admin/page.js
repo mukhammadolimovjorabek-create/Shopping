@@ -13,7 +13,7 @@ export default function AdminPage() {
   const [price, setPrice] = useState('');
   const [originalPrice, setOriginalPrice] = useState('');
   const [stockCount, setStockCount] = useState('10');
-  const [deliveryTime, setDeliveryTime] = useState('Ertaga');
+  const [deliveryTime, setDeliveryTime] = useState('');
   const [sizes, setSizes] = useState('');
   const [promoCode, setPromoCode] = useState('');
   const [promoPercent, setPromoPercent] = useState('');
@@ -297,7 +297,7 @@ export default function AdminPage() {
                 placeholder="Nechta bor?" />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Yetkazib berish (Matn)</label>
+              <label className="block text-sm text-gray-400 mb-1">Yetkazib berish sanasi</label>
               <input type="text" value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} 
                 className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" />
             </div>

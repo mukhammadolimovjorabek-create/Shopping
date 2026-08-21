@@ -39,7 +39,7 @@ export default function Home() {
       "Savat": { ru: "Корзина", en: "Cart", uz: "Savat" },
       "Profil": { ru: "Профиль", en: "Profile", uz: "Profil" },
       "Sotuvda: Mavjud": { ru: "В наличии: Доступно", en: "In Stock: Available", uz: "Sotuvda: Mavjud" },
-      "Yetkazish:": { ru: "Доставка:", en: "Delivery:", uz: "Yetkazish:" },
+      "Yetkazib berish sanasi:": { ru: "Дата доставки:", en: "Delivery date:", uz: "Yetkazib berish sanasi:" },
       "O'lchamni tanlang:": { ru: "Выберите размер:", en: "Select size:", uz: "O'lchamni tanlang:" },
       "Promokod": { ru: "Промокод", en: "Promo Code", uz: "Promokod" },
       "Qo'llash": { ru: "Применить", en: "Apply", uz: "Qo'llash" },
@@ -269,7 +269,8 @@ export default function Home() {
       user_id: tgUser?.id?.toString() || 'anonymous',
       user_name: profileName || 'Mijoz',
       text: reviewInput,
-      likes: ratingInput
+      likes: ratingInput,
+        rating: ratingInput
     }]);
 
     if (error && error.message.includes('rating')) {
@@ -325,7 +326,7 @@ export default function Home() {
 
   const getAverageRating = (productReviews) => {
     if (!productReviews || productReviews.length === 0) return 0;
-    const validRatings = productReviews.map(r => r.rating || 0).filter(r => r > 0);
+    const validRatings = productReviews.map(r => r.rating || r.likes || 0).filter(r => r > 0);
     if (validRatings.length === 0) return 0;
     const sum = validRatings.reduce((a, b) => a + b, 0);
     return (sum / validRatings.length).toFixed(1);
@@ -496,11 +497,13 @@ export default function Home() {
       setCheckoutSuccess(true);
       // Immediately load orders so UI updates
       loadMyOrders();
+        fetchProducts(false);
       
       setTimeout(() => {
         setCheckoutSuccess(false);
         setActiveTab('profile');
         loadMyOrders();
+        fetchProducts(false);
       }, 3000);
     } catch (e) {
       alert("Xatolik yuz berdi: " + e.message);
@@ -787,7 +790,8 @@ export default function Home() {
               </div>
             ) : (
               <div className="space-y-2">
-                <button onClick={() => { setProfileView('orders'); loadMyOrders(); }} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 dark:border-gray-700">
+                <button onClick={() => { setProfileView('orders'); loadMyOrders();
+        fetchProducts(false); }} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 dark:border-gray-700">
                   <span className="font-semibold text-black dark:text-white font-semibold dark:text-gray-200 flex items-center gap-2"><span className="text-xl">📦</span> {tr("Buyurtmalarim")}</span>
                   <span className="text-slate-500 dark:text-slate-400">➔</span>
                 </button>
@@ -888,31 +892,54 @@ export default function Home() {
           )}
 
           {activeTab === 'profile' && profileView === 'all_reviews' && (
-            <div className="p-4 pb-20">
-              <button onClick={() => setProfileView('main')} className="mb-4 text-purple-600 font-bold flex items-center gap-1">
-                <span>←</span> Orqaga
-              </button>
-              <h2 className="text-xl font-bold mb-4 dark:text-white">💬 Mijozlar Sharhlari</h2>
-              <div className="space-y-4">
-                {allReviews.map(r => (
-                  <div key={r.id} className="bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 dark:border-gray-700">
-                    <p className="font-bold dark:text-white">{r.users?.first_name}</p>
-                    <p className="text-sm text-black dark:text-white dark:text-gray-300 mt-1">{r.content}</p>
-                    <div className="mt-3 flex gap-2">
-                      <input 
-                        type="text" 
-                        placeholder="Javob yozish..." 
-                        className="flex-1 bg-white dark:bg-slate-900 dark:bg-gray-700 border border-slate-300 dark:border-slate-700 dark:border-gray-600 text-sm rounded-lg p-2 dark:text-white"
-                        value={replyTexts[r.id] || ''}
-                        onChange={(e) => setReplyTexts({...replyTexts, [r.id]: e.target.value})}
-                      />
-                      <button onClick={() => submitReply(r.user_id, r.id, replyTexts[r.id])} className="bg-purple-600 text-white px-3 py-2 rounded-lg text-sm font-bold">Yuborish</button>
+              <div className="p-4 pb-20 bg-white dark:bg-slate-900 min-h-screen">
+                <button onClick={() => setProfileView('main')} className="mb-4 text-purple-600 font-bold flex items-center gap-1">
+                  <span>←</span> Orqaga
+                </button>
+                <h2 className="text-xl font-bold mb-4 text-black dark:text-white">💬 Mijozlar Sharhlari</h2>
+                <div className="space-y-4">
+                  {allReviews.map(r => (
+                    <div key={r.id} className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+                      
+                      <div className="flex justify-between mb-2">
+                        <p className="font-bold text-black dark:text-white text-lg">{r.users?.first_name || r.user_name || 'Mijoz'}</p>
+                        <span className="text-yellow-500 text-sm">{'⭐'.repeat(r.rating || r.likes || 5)}</span>
+                      </div>
+                      
+                      {r.products && (
+                        <div className="flex items-center gap-2 mb-2 bg-slate-50 dark:bg-slate-900 p-2 rounded-lg">
+                          <img src={r.products.image_url} className="w-8 h-8 object-cover rounded" />
+                          <span className="text-xs font-bold text-black dark:text-white">{r.products.title}</span>
+                        </div>
+                      )}
+
+                      <p className="text-sm text-black dark:text-white bg-slate-100 dark:bg-slate-900 p-3 rounded-lg mb-3 border border-slate-200 dark:border-slate-700">{r.text}</p>
+                      
+                      {r.admin_reply && (
+                        <div className="mb-3 p-3 bg-purple-50 dark:bg-purple-900/30 rounded-lg border-l-4 border-purple-500">
+                          <p className="text-xs font-bold text-purple-600 dark:text-purple-400 mb-1">Sizning javobingiz:</p>
+                          <p className="text-sm text-black dark:text-white">{r.admin_reply}</p>
+                        </div>
+                      )}
+
+                      <div className="mt-3 flex gap-2">
+                        <input 
+                          type="text" 
+                          placeholder={r.admin_reply ? "Javobni o'zgartirish..." : "Javob yozish..."}
+                          className="flex-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-sm rounded-lg p-2 text-black dark:text-white outline-none focus:border-purple-500"
+                          value={replyTexts[r.id] || ''}
+                          onChange={(e) => setReplyTexts({...replyTexts, [r.id]: e.target.value})}
+                        />
+                        <button onClick={() => submitReply(r.id, r.user_id)} className="bg-purple-600 text-white px-4 rounded-lg font-bold text-sm hover:bg-purple-700 transition">
+                          Yuborish
+                        </button>
+                      </div>
+
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
           {activeTab === 'profile' && profileView === 'all_messages' && (
             <div className="p-4 pb-20">
@@ -1184,7 +1211,7 @@ export default function Home() {
                 
                 <div className="mt-4 p-3 bg-white dark:bg-slate-900 rounded-xl flex items-center justify-between">
                   <span className="text-sm text-black dark:text-white">Qoldiq: <strong className="text-black dark:text-white">{selectedProduct.stock_count} ta</strong></span>
-                  <span className="text-sm text-black dark:text-white">{tr("Yetkazish:")} <strong className="text-black dark:text-white">{selectedProduct.delivery_time}</strong></span>
+                  <span className="text-sm text-black dark:text-white">{tr("Yetkazib berish sanasi:")} <strong className="text-black dark:text-white">{selectedProduct.delivery_time}</strong></span>
                 </div>
 
                 {selectedProduct.sizes && selectedProduct.sizes.trim() !== '' && (
