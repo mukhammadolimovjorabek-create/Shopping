@@ -411,7 +411,7 @@ export default function Home() {
 
       const BOT_TOKEN = "8977055750:AAHvhnSZHJyJ0dqUhVIQjpp2UrE9udVgpYI";
       const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || "5466728043").split(',');
-      const message = `🚨 <b>Yangi Buyurtma!</b>\n👤 Mijoz: ${checkoutName} ${tgUser?.username ? '(@' + tgUser.username + ')' : ''}\n📞 Tel: ${combinedPhone}\n🛍 Tovar: \n${orderDetailsStr}\n💰 50% To'lov: ${formatPrice(totalPrice)}\n🖼 Chek rasmi biriktirilgan\n\n[ ⚙️ Admin Paneldan ko'rish ]`;
+      const message = `🚨 <b>Yangi Buyurtma!</b>\n👤 Mijoz: ${checkoutName} ${tgUser?.username ? '(@' + tgUser.username + ')' : ''}\n📞 Tel: ${combinedPhone}\n🛍 Tovar: \n${orderDetailsStr}\n💰 50% To'lov: ${formatPrice(totalPrice)}\n🖼 Chek rasmi biriktirilgan\n\n✅ Buyurtma profilingizdagi 'Barcha Mijozlar Buyurtmalari' bo'limiga tushdi.`;
 
       for (const adminId of ADMIN_IDS) {
         if (adminId.trim()) {
