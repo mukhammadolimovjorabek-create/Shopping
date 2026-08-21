@@ -1009,15 +1009,15 @@ export default function Home() {
             <div className="space-y-4 mb-6">
               <div>
                 <label className="text-xs font-bold text-gray-600 mb-1 block">Ism-familiya *</label>
-                <input type="text" value={checkoutName} onChange={e=>setCheckoutName(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-purple-500" placeholder="Ali Valiyev" />
+                <input type="text" value={checkoutName} onChange={e=>setCheckoutName(e.target.value)} className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 p-3 rounded-xl outline-none focus:border-purple-500 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400" placeholder="Ali Valiyev" />
               </div>
               <div>
                 <label className="text-xs font-bold text-gray-600 mb-1 block">Asosiy nomer *</label>
-                <input type="tel" value={checkoutPhone1} onChange={e=>setCheckoutPhone1(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-purple-500" placeholder="+998 90 123 45 67" />
+                <input type="tel" value={checkoutPhone1} onChange={e=>setCheckoutPhone1(e.target.value)} className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 p-3 rounded-xl outline-none focus:border-purple-500 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400" placeholder="+998 90 123 45 67" />
               </div>
               <div>
                 <label className="text-xs font-bold text-gray-600 mb-1 block">Qo'shimcha nomer *</label>
-                <input type="tel" value={checkoutPhone2} onChange={e=>setCheckoutPhone2(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-purple-500" placeholder="+998 90 765 43 21" />
+                <input type="tel" value={checkoutPhone2} onChange={e=>setCheckoutPhone2(e.target.value)} className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 p-3 rounded-xl outline-none focus:border-purple-500 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400" placeholder="+998 90 765 43 21" />
               </div>
             </div>
             
