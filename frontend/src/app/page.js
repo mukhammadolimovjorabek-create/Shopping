@@ -426,7 +426,7 @@ export default function Home() {
     setProfileView('orders');
     if (!tgUser) return;
     try {
-      const { data } = await supabase.from('orders').select('*').eq('user_id', tgUser.id.toString()).order('created_at', { ascending: false });
+      const { data } = await supabase.from('orders').select('*, products(title, image_url)').eq('user_id', tgUser.id.toString()).order('created_at', { ascending: false });
       if (data) setMyOrders(data);
     } catch(e){}
   };
@@ -670,19 +670,19 @@ export default function Home() {
 
             {isAdmin ? (
               <div className="space-y-2">
-                <button onClick={() => window.location.href = '/admin#orders'} className="w-full bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50 border border-gray-100 dark:border-gray-700">
+                <button onClick={() => window.location.href = '/admin.html#orders'} className="w-full bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50 border border-gray-100 dark:border-gray-700">
                   <span className="font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2"><span className="text-xl">📦</span> Barcha Mijozlar Buyurtmalari</span>
                   <span className="text-gray-400">➔</span>
                 </button>
-                <button onClick={() => window.location.href = '/admin#reviews'} className="w-full bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50 border border-gray-100 dark:border-gray-700">
+                <button onClick={() => window.location.href = '/admin.html#reviews'} className="w-full bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50 border border-gray-100 dark:border-gray-700">
                   <span className="font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2"><span className="text-xl">💬</span> Mijozlar Sharhlari (Javob berish)</span>
                   <span className="text-gray-400">➔</span>
                 </button>
-                <button onClick={() => window.location.href = '/admin#messages'} className="w-full bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50 border border-gray-100 dark:border-gray-700">
+                <button onClick={() => window.location.href = '/admin.html#messages'} className="w-full bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50 border border-gray-100 dark:border-gray-700">
                   <span className="font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2"><span className="text-xl">🎧</span> Mijozlar Murojaatlari (Javob)</span>
                   <span className="text-gray-400">➔</span>
                 </button>
-                <button onClick={() => window.location.href = '/admin#products'} className="w-full bg-purple-600 text-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:scale-95 border border-transparent mt-4">
+                <button onClick={() => window.location.href = '/admin.html#products'} className="w-full bg-purple-600 text-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:scale-95 border border-transparent mt-4">
                   <span className="font-bold text-lg flex items-center gap-2">👨‍💻 Tovar va Do'kon Boshqaruvi</span>
                   <span>➔</span>
                 </button>
