@@ -92,20 +92,57 @@ export default function Home() {
 
   const loadAllOrders = async () => {
     setProfileView('all_orders');
-    const { data } = await supabase.from('orders').select('*, products(title, image_url), users(first_name, username, phone_number, full_name)').order('created_at', { ascending: false });
-    if(data) setAllOrders(data);
+    try {
+      const { data: ordersData, error } = await supabase.from('orders').select('*, products(title, image_url)').order('created_at', { ascending: false });
+      if (error) {
+        console.error("Orders Error:", error);
+        alert("Buyurtmalarni yuklashda xato: " + error.message);
+        return;
+      }
+      if (ordersData) {
+        const userIds = [...new Set(ordersData.map(o => o.user_id).filter(Boolean))];
+        let usersData = [];
+        if (userIds.length > 0) {
+          const { data: uData } = await supabase.from('users').select('id, first_name, username, phone_number, full_name').in('id', userIds);
+          if (uData) usersData = uData;
+        }
+        const merged = ordersData.map(o => ({ ...o, users: usersData.find(u => u.id === o.user_id) || null }));
+        setAllOrders(merged);
+      }
+    } catch(e) {
+      console.error(e);
+    }
   };
 
   const loadAllReviews = async () => {
     setProfileView('all_reviews');
-    const { data } = await supabase.from('reviews').select('*, users(first_name, username)').not('product_id', 'is', null).order('created_at', { ascending: false });
-    if(data) setAllReviews(data);
+    try {
+      const { data: revData } = await supabase.from('reviews').select('*, products(title, image_url)').not('product_id', 'is', null).order('created_at', { ascending: false });
+      if (revData) {
+        const userIds = [...new Set(revData.map(r => r.user_id).filter(Boolean))];
+        let usersData = [];
+        if (userIds.length > 0) {
+          // Some old user_ids might be strings (telegram_id), but since we fixed it to UUID, we filter properly
+          // Let's just fetch all users for safety or skip user merge if it fails
+          const { data: uData } = await supabase.from('users').select('id, first_name, username');
+          if (uData) usersData = uData;
+        }
+        const merged = revData.map(r => ({ ...r, users: usersData.find(u => u.id === r.user_id || u.telegram_id?.toString() === r.user_id?.toString()) || null }));
+        setAllReviews(merged);
+      }
+    } catch(e) {}
   };
 
   const loadAllMessages = async () => {
     setProfileView('all_messages');
-    const { data } = await supabase.from('reviews').select('*, users(first_name, username)').is('product_id', null).order('created_at', { ascending: false });
-    if(data) setAllMessages(data);
+    try {
+      const { data: msgData } = await supabase.from('reviews').select('*').is('product_id', null).order('created_at', { ascending: false });
+      if (msgData) {
+        const { data: uData } = await supabase.from('users').select('id, first_name, username');
+        const merged = msgData.map(r => ({ ...r, users: uData?.find(u => u.id === r.user_id || u.telegram_id?.toString() === r.user_id?.toString()) || null }));
+        setAllMessages(merged);
+      }
+    } catch(e) {}
   };
 
   const submitReply = async (userId, reviewId, text) => {
