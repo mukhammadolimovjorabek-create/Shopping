@@ -33,7 +33,7 @@ export default function AdminPage() {
   
   const [replyText, setReplyText] = useState({});
 
-  const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || '5466728043').split(',');
+  const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || '5466728043,8402070900').split(',');
 
   useEffect(() => {
     const check = () => {

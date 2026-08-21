@@ -231,7 +231,7 @@ export default function Home() {
           setNewProfileName(sName || user.first_name);
         }
         
-        const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || '5466728043').split(',');
+        const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || '5466728043,8402070900').split(',');
         if (user && ADMIN_IDS.includes(user.id.toString())) {
           setIsAdmin(true);
         }
@@ -464,7 +464,7 @@ export default function Home() {
       }
 
       const BOT_TOKEN = "8977055750:AAHvhnSZHJyJ0dqUhVIQjpp2UrE9udVgpYI";
-      const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || "5466728043").split(',');
+      const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || "5466728043,8402070900").split(',');
       const message = `🚨 <b>Yangi Buyurtma!</b>\n👤 Mijoz: ${checkoutName} ${tgUser?.username ? '(@' + tgUser.username + ')' : ''}\n📞 Tel: ${combinedPhone}\n🛍 Tovar: \n${orderDetailsStr}\n💰 50% To'lov: ${formatPrice(totalPrice)}\n🖼 Chek rasmi biriktirilgan\n\n✅ Buyurtma profilingizdagi 'Barcha Mijozlar Buyurtmalari' bo'limiga tushdi.`;
 
       for (const adminId of ADMIN_IDS) {
