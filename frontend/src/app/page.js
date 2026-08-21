@@ -689,11 +689,13 @@ export default function Home() {
                     <p className="text-sm font-extrabold text-black dark:text-white font-bold leading-tight">{formatPrice(p.price_usd)}</p>
                     <p className="text-xs text-black dark:text-white mt-1 line-clamp-2 leading-snug">{p.title}</p>
                     
-                    <div className="mt-2 flex items-center gap-1">
-                      <span className="bg-yellow-100 text-yellow-700 text-[9px] font-bold px-1.5 py-0.5 rounded">
+                    <div className="mt-2 flex flex-col gap-1 items-start">
+                      <span className="bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-400 text-[10px] font-bold px-1.5 py-0.5 rounded">
                         ★ {avgRating}
                       </span>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400">{p.delivery_time}</span>
+                      {p.delivery_time && (
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Yetkazib berish sanasi: <br/><b className="text-black dark:text-white">{p.delivery_time}</b></span>
+                      )}
                     </div>
 
                     {isOutOfStock && (
