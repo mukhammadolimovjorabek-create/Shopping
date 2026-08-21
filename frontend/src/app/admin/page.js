@@ -460,8 +460,8 @@ export default function AdminPage() {
                 <p className="text-white mb-4 bg-gray-700/50 p-3 rounded-xl">{r.text}</p>
                 
                 <div className="flex gap-2">
-                  <input type="text" placeholder="Javobingiz..." value={replyText[r.id] || r.admin_reply || ''} onChange={e => setReplyText({...replyText, [r.id]: e.target.value})} className="flex-1 bg-gray-700 rounded-lg p-2 outline-none focus:border-yellow-500 border border-transparent" />
-                  <button onClick={() => submitReply('reviews', r.id)} className="bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold">Javob berish</button>
+                  <input type="text" placeholder="Javobingiz..." value={replyText[r.id] || ''} onChange={e => setReplyText({...replyText, [r.id]: e.target.value})} className="flex-1 bg-gray-700 rounded-lg p-2 outline-none focus:border-yellow-500 border border-transparent" />
+                  <button onClick={() => submitReply('reviews', r.id, r.user_id)} className="bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold">Javob yuborish</button>
                 </div>
               </div>
             ))
@@ -479,8 +479,8 @@ export default function AdminPage() {
                 <p className="text-white mb-4 bg-gray-700/50 p-3 rounded-xl">{m.text}</p>
                 
                 <div className="flex gap-2">
-                  <input type="text" placeholder="Javobingiz..." value={replyText[m.id] || m.admin_reply || ''} onChange={e => setReplyText({...replyText, [m.id]: e.target.value})} className="flex-1 bg-gray-700 rounded-lg p-2 outline-none focus:border-purple-500 border border-transparent" />
-                  <button onClick={() => submitReply('messages', m.id)} className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold">Javob berish</button>
+                  <input type="text" placeholder="Javobingiz..." value={replyText[m.id] || ''} onChange={e => setReplyText({...replyText, [m.id]: e.target.value})} className="flex-1 bg-gray-700 rounded-lg p-2 outline-none focus:border-purple-500 border border-transparent" />
+                  <button onClick={() => submitReply('messages', m.id, m.user_id)} className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold">Javob yuborish</button>
                 </div>
               </div>
             ))
