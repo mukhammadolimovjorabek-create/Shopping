@@ -226,6 +226,16 @@ export default function AdminPage() {
     }
   };
 
+  const handleToggleNew = async (id, currentWeight) => {
+    try {
+      const newWeight = currentWeight === 1 ? 0 : 1;
+      await supabase.from('products').update({ weight_kg: newWeight }).eq('id', id);
+      fetchProducts();
+    } catch (error) {
+      alert('Xatolik yuz berdi: ' + error.message);
+    }
+  };
+
   if (loading) return <div className="p-8 text-center text-white">Tekshirilmoqda...</div>;
   if (!isAdmin) return <div className="p-8 text-center text-red-400 font-bold">Sizga ruxsat yo'q! Kiring: Telegram.</div>;
 
@@ -368,13 +378,16 @@ export default function AdminPage() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  <button onClick={() => startEditing(p)} className="flex-1 bg-blue-600/20 text-blue-400 py-2 rounded-lg hover:bg-blue-600 hover:text-white transition font-bold text-sm">
+                  <button onClick={() => startEditing(p)} className="flex-1 min-w-[100px] bg-blue-600/20 text-blue-400 py-2 rounded-lg hover:bg-blue-600 hover:text-white transition font-bold text-sm">
                     Tahrirlash
                   </button>
-                  <button onClick={() => handleDelete(p.id, p.image_url)} className="flex-1 bg-red-600/20 text-red-400 py-2 rounded-lg hover:bg-red-600 hover:text-white transition font-bold text-sm">
+                  <button onClick={() => handleToggleNew(p.id, p.weight_kg)} className="flex-1 min-w-[100px] bg-green-600/20 text-green-400 py-2 rounded-lg hover:bg-green-600 hover:text-white transition font-bold text-sm">
+                    {p.weight_kg === 1 ? 'Eski (Oddiy)' : 'Yangi qilish'}
+                  </button>
+                  <button onClick={() => handleDelete(p.id, p.image_url)} className="flex-1 min-w-[100px] bg-red-600/20 text-red-400 py-2 rounded-lg hover:bg-red-600 hover:text-white transition font-bold text-sm">
                     O'chirish
                   </button>
-                  <button onClick={() => handleToggleStock(p.id, p.description)} className="flex-1 bg-gray-700 text-gray-300 py-2 rounded-lg hover:bg-gray-600 transition font-bold text-sm">
+                  <button onClick={() => handleToggleStock(p.id, p.description)} className="flex-1 min-w-[100px] bg-gray-700 text-gray-300 py-2 rounded-lg hover:bg-gray-600 transition font-bold text-sm">
                     {p.description === 'OUT_OF_STOCK' ? 'Sotuvga qaytarish' : 'Tugadi'}
                   </button>
                 </div>

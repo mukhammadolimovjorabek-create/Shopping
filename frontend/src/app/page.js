@@ -7,12 +7,63 @@ export default function Home() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('home');
+  const [lang, setLang] = useState('uz');
+  const [theme, setTheme] = useState('light');
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const l = localStorage.getItem('omni_lang') || 'uz';
+      const t = localStorage.getItem('omni_theme') || 'light';
+      setLang(l);
+      setTheme(t);
+    }
+  }, []);
+  const changeLang = (newLang) => { setLang(newLang); if (typeof window !== 'undefined') localStorage.setItem('omni_lang', newLang); };
+  const changeTheme = (newTheme) => { setTheme(newTheme); if (typeof window !== 'undefined') localStorage.setItem('omni_theme', newTheme); };
+  const tr = (text) => {
+    const dict = {
+      "XTD": { ru: "Прямо из Китая", en: "Direct from China", uz: "Xitoydan to'g'ridan-to'g'ri" },
+      "Savatingiz": { ru: "Ваша корзина", en: "Your Cart", uz: "Savatingiz" },
+      "Savat bo'sh": { ru: "Корзина пуста", en: "Cart is empty", uz: "Savat bo'sh" },
+      "Jami:": { ru: "Итого:", en: "Total:", uz: "Jami:" },
+      "Rasmiylashtirish": { ru: "Оформить заказ", en: "Checkout", uz: "Rasmiylashtirish" },
+      "Buyurtmalarim": { ru: "Мои заказы", en: "My Orders", uz: "Buyurtmalarim" },
+      "Sharhlarim": { ru: "Мои отзывы", en: "My Reviews", uz: "Sharhlarim" },
+      "Sotuvchiga murojaat": { ru: "Связаться с продавцом", en: "Contact Seller", uz: "Sotuvchiga murojaat" },
+      "Sozlamalar": { ru: "Настройки", en: "Settings", uz: "Sozlamalar" },
+      "Orqaga": { ru: "Назад", en: "Back", uz: "Orqaga" },
+      "Tilni o'zgartirish": { ru: "Изменить язык", en: "Change Lang", uz: "Tilni o'zgartirish" },
+      "Mavzuni o'zgartirish": { ru: "Изменить тему", en: "Change Theme", uz: "Mavzuni o'zgartirish" },
+      "Yorug'": { ru: "Светлая", en: "Light", uz: "Yorug'" },
+      "Qorong'i": { ru: "Тёмная", en: "Dark", uz: "Qorong'i" },
+      "Asosiy": { ru: "Главная", en: "Home", uz: "Asosiy" },
+      "Savat": { ru: "Корзина", en: "Cart", uz: "Savat" },
+      "Profil": { ru: "Профиль", en: "Profile", uz: "Profil" },
+      "Sotuvda: Mavjud": { ru: "В наличии: Доступно", en: "In Stock: Available", uz: "Sotuvda: Mavjud" },
+      "Yetkazish:": { ru: "Доставка:", en: "Delivery:", uz: "Yetkazish:" },
+      "O'lchamni tanlang:": { ru: "Выберите размер:", en: "Select size:", uz: "O'lchamni tanlang:" },
+      "Promokod": { ru: "Промокод", en: "Promo Code", uz: "Promokod" },
+      "Qo'llash": { ru: "Применить", en: "Apply", uz: "Qo'llash" },
+      "Qabul qilindi!": { ru: "Принято!", en: "Accepted!", uz: "Qabul qilindi!" },
+      "To'lov (1/2)": { ru: "Оплата (1/2)", en: "Payment (1/2)", uz: "To'lov (1/2)" },
+      "To'lov (2/2)": { ru: "Оплата (2/2)", en: "Payment (2/2)", uz: "To'lov (2/2)" },
+      "Jo'natish": { ru: "Отправить", en: "Send", uz: "Jo'natish" },
+      "Sharhlar": { ru: "Отзывы", en: "Reviews", uz: "Sharhlar" },
+      "Foydalanuvchi": { ru: "Пользователь", en: "User", uz: "Foydalanuvchi" },
+      "Ismingiz va familiyangiz": { ru: "Ваше имя и фамилия", en: "Your full name", uz: "Ismingiz va familiyangiz" },
+      "Do'konni ochish": { ru: "Открыть магазин", en: "Open Shop", uz: "Do'konni ochish" }
+    };
+    if (!dict[text] || !dict[text][lang]) return text;
+    return dict[text][lang];
+  };
+
   const [cart, setCart] = useState([]);
   
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [newProfileName, setNewProfileName] = useState('');
   const [onboardName, setOnboardName] = useState('');
   const [hasOnboarded, setHasOnboarded] = useState(true);
+  const [profileName, setProfileName] = useState('Foydalanuvchi');
+  const [profileAvatar, setProfileAvatar] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedSize, setSelectedSize] = useState('');
   const [promoInput, setPromoInput] = useState('');
@@ -387,13 +438,13 @@ export default function Home() {
 
   if (!hasOnboarded) {
     return (
-      <div className="flex flex-col h-screen bg-gradient-to-br from-purple-50 via-white to-orange-50 items-center justify-center p-6 text-center animate-fade-in">
+      <div data-theme={theme} className="omni-app flex flex-col h-screen bg-gradient-to-br from-purple-50 via-white to-orange-50 items-center justify-center p-6 text-center animate-fade-in">
         <h1 className="text-3xl font-extrabold mb-2 text-gray-900"><span className="text-purple-600">Omni</span><span className="text-orange-500">Shop</span> ga xush kelibsiz!</h1>
         <p className="text-gray-500 mb-8 font-medium">Xaridlarni boshlashdan oldin, iltimos ism-familiyangizni kiriting:</p>
         <div className="w-full max-w-sm bg-white p-6 rounded-3xl shadow-xl border border-gray-100">
           <input 
             type="text" 
-            placeholder="Ismingiz va familiyangiz" 
+            placeholder={tr("Ismingiz va familiyangiz")} 
             value={onboardName}
             onChange={(e) => setOnboardName(e.target.value)}
             className="w-full border border-gray-200 rounded-xl p-4 text-center font-bold text-lg mb-4 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
@@ -409,20 +460,47 @@ export default function Home() {
     );
   }
 
+  const handleProfileSave = () => {
+    if (tgUser) {
+      localStorage.setItem(`omni_name_${tgUser.id}`, newProfileName);
+    }
+    setProfileName(newProfileName);
+    setIsEditingProfile(false);
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `avatar_${Math.random()}.${fileExt}`;
+      const { data, error } = await supabase.storage.from('product_images').upload(fileName, file);
+      if (error) throw error;
+      const { data: publicUrlData } = supabase.storage.from('product_images').getPublicUrl(fileName);
+      const url = publicUrlData.publicUrl;
+      if (url && tgUser) {
+        localStorage.setItem(`omni_avatar_${tgUser.id}`, url);
+        setProfileAvatar(url);
+      }
+    } catch (e) {
+      alert("Rasm yuklashda xatolik yuz berdi.");
+    }
+  };
+
   if (checkoutSuccess) {
     return (
       <div className="flex flex-col h-screen items-center justify-center bg-green-50 animate-fade-in px-6 text-center">
         <div className="w-24 h-24 bg-green-500 text-white rounded-full flex items-center justify-center text-5xl shadow-xl shadow-green-200 mb-6 animate-bounce">
           ✓
         </div>
-        <h1 className="text-4xl font-black text-green-600 mb-2">Qabul qilindi!</h1>
+        <h1 className="text-4xl font-black text-green-600 mb-2">{tr("Qabul qilindi!")}</h1>
         <p className="text-gray-600 font-medium">Buyurtma muvaffaqiyatli rasmiylashtirildi. Tez orada bog'lanamiz.</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-purple-50 via-gray-50 to-orange-50 text-gray-900 font-sans overflow-hidden relative">
+    <div data-theme={theme} className={`omni-app flex flex-col h-screen text-gray-900 font-sans overflow-hidden relative ${activeTab === 'home' ? 'bg-[url("https://www.transparenttextures.com/patterns/cubes.png")] bg-gradient-to-br from-purple-50 via-gray-50 to-orange-50' : activeTab === 'cart' ? 'bg-[url("https://www.transparenttextures.com/patterns/diagonal-stripes.png")] bg-gradient-to-tr from-blue-50 to-purple-50' : 'bg-[url("https://www.transparenttextures.com/patterns/stardust.png")] bg-gradient-to-bl from-orange-50 to-red-50'} bg-fixed`}>
       
       <div className="bg-white px-4 py-3 flex justify-between items-center shadow-sm z-10">
         <div>
@@ -432,7 +510,11 @@ export default function Home() {
             </span>
             <span className="text-xl">🛍️</span>
           </h1>
-          <p className="text-[10px] text-gray-500 font-medium">Xitoydan to'g'ridan-to'g'ri 🇨🇳 🇺🇿</p>
+          <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-medium mt-0.5">
+            {tr("XTD")}
+            <img src="https://flagcdn.com/w20/cn.png" srcSet="https://flagcdn.com/w40/cn.png 2x" alt="CN" className="w-4 h-auto shadow-sm rounded-sm" />
+            <img src="https://flagcdn.com/w20/uz.png" srcSet="https://flagcdn.com/w40/uz.png 2x" alt="UZ" className="w-4 h-auto shadow-sm rounded-sm" />
+          </div>
         </div>
         
         {isAdmin && (
@@ -500,11 +582,11 @@ export default function Home() {
 
         {activeTab === 'cart' && (
           <div className="p-4">
-            <h2 className="text-xl font-bold mb-4">Savatingiz ({cart.length})</h2>
+            <h2 className="text-xl font-bold mb-4">{tr("Savatingiz")} ({cart.length})</h2>
             {cart.length === 0 ? (
               <div className="text-center text-gray-400 mt-10">
                 <p className="text-4xl mb-2">🛒</p>
-                <p>Savat bo'sh</p>
+                <p>{tr("Savat bo'sh")}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -524,7 +606,7 @@ export default function Home() {
                 
                 <div className="bg-white p-4 rounded-2xl shadow-sm mt-4 border-t-2 border-purple-50">
                   <div className="flex justify-between font-bold text-lg mb-4">
-                    <span>Jami:</span>
+                    <span>{tr("Jami:")}</span>
                     <span>{formatPrice(cart.reduce((sum, i) => sum + i.finalPrice, 0))}</span>
                   </div>
                   <button onClick={() => setCheckoutStep(1)} className="w-full bg-purple-600 text-white font-bold py-3 rounded-xl active:scale-95 transition-transform">
@@ -595,29 +677,22 @@ export default function Home() {
             <button onClick={() => setProfileView('main')} className="mb-4 text-purple-600 font-bold flex items-center gap-1">
               <span>‹</span> Orqaga
             </button>
-            <h2 className="text-xl font-bold mb-4">⚙️ Sozlamalar</h2>
+            <h2 className="text-xl font-bold mb-4">⚙️ {tr("Sozlamalar")}</h2>
             
             <div className="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-gray-100">
-              <h3 className="font-bold text-gray-800 mb-3">🌐 Tilni o'zgartirish</h3>
+              <h3 className="font-bold text-gray-800 mb-3">🌐 {tr("Tilni o'zgartirish")}</h3>
               <div className="flex gap-2">
-                <button className="flex-1 bg-purple-600 text-white font-bold py-2.5 rounded-xl shadow-sm">
-                  🇺🇿 O'zbekcha
-                </button>
-                <button onClick={() => alert("Rus tili tez kunda qo'shiladi! (Hali tarjimalar to'liq emas)")} className="flex-1 bg-gray-100 text-gray-500 font-bold py-2.5 rounded-xl active:scale-95 transition">
-                  🇷🇺 Русский
-                </button>
+                <button onClick={() => changeLang('uz')} className={`flex-1 font-bold py-2.5 rounded-xl shadow-sm transition ${lang === 'uz' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500'}`}>🇺🇿 O'zbekcha</button>
+   <button onClick={() => changeLang('ru')} className={`flex-1 font-bold py-2.5 rounded-xl shadow-sm transition ${lang === 'ru' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500'}`}>🇷🇺 Русский</button>
+   <button onClick={() => changeLang('en')} className={`flex-1 font-bold py-2.5 rounded-xl shadow-sm transition ${lang === 'en' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500'}`}>🇬🇧 English</button>
               </div>
             </div>
 
             <div className="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-gray-100">
-              <h3 className="font-bold text-gray-800 mb-3">🎨 Mavzuni o'zgartirish</h3>
+              <h3 className="font-bold text-gray-800 mb-3">🎨 {tr("Mavzuni o'zgartirish")}</h3>
               <div className="flex gap-2">
-                <button className="flex-1 bg-purple-600 text-white font-bold py-2.5 rounded-xl shadow-sm">
-                  ☀️ Yorug'
-                </button>
-                <button onClick={() => alert("Qorong'i (Tungi) mavzu dizayni ishlab chiqilmoqda! Tez kunda qo'shiladi.")} className="flex-1 bg-gray-100 text-gray-500 font-bold py-2.5 rounded-xl active:scale-95 transition">
-                  🌙 Qorong'i
-                </button>
+                <button onClick={() => changeTheme('light')} className={`flex-1 font-bold py-2.5 rounded-xl shadow-sm transition ${theme === 'light' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500'}`}>☀️ {tr("Yorug'")}</button>
+   <button onClick={() => changeTheme('dark')} className={`flex-1 font-bold py-2.5 rounded-xl shadow-sm transition ${theme === 'dark' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500'}`}>🌙 {tr("Qorong'i")}</button>
               </div>
             </div>
           </div>
@@ -728,16 +803,16 @@ export default function Home() {
       <div className="absolute bottom-0 w-full bg-white border-t border-gray-200 px-6 py-3 flex justify-between items-center pb-safe">
         <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 ${activeTab === 'home' ? 'text-purple-600' : 'text-gray-400'}`}>
           <span className="text-2xl">🏠</span>
-          <span className="text-[10px] font-bold">Asosiy</span>
+          <span className="text-[10px] font-bold">{tr("Asosiy")}</span>
         </button>
         <button onClick={() => setActiveTab('cart')} className={`flex flex-col items-center gap-1 relative ${activeTab === 'cart' ? 'text-purple-600' : 'text-gray-400'}`}>
           <span className="text-2xl">🛒</span>
           {cart.length > 0 && <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">{cart.length}</span>}
-          <span className="text-[10px] font-bold">Savat</span>
+          <span className="text-[10px] font-bold">{tr("Savat")}</span>
         </button>
         <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center gap-1 ${activeTab === 'profile' ? 'text-purple-600' : 'text-gray-400'}`}>
           <span className="text-2xl">👤</span>
-          <span className="text-[10px] font-bold">Profil</span>
+          <span className="text-[10px] font-bold">{tr("Profil")}</span>
         </button>
       </div>
 
@@ -775,7 +850,7 @@ export default function Home() {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-sm rounded-3xl p-6 relative">
             <button onClick={() => setCheckoutStep(0)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
-            <h2 className="text-2xl font-bold mb-2">To'lov (2/2)</h2>
+            <h2 className="text-2xl font-bold mb-2">{tr("To'lov (2/2)")}</h2>
             <p className="text-red-500 font-bold text-sm mb-4">50% to'lov qilganingizdan keyin rasmiylashtiriladi.</p>
             
             <div className="bg-gray-100 p-4 rounded-xl mb-4 border border-gray-200">
@@ -843,12 +918,12 @@ export default function Home() {
                 
                 <div className="mt-4 p-3 bg-gray-50 rounded-xl flex items-center justify-between">
                   <span className="text-sm text-gray-600">Qoldiq: <strong className="text-black">{selectedProduct.stock_count} ta</strong></span>
-                  <span className="text-sm text-gray-600">Yetkazish: <strong className="text-black">{selectedProduct.delivery_time}</strong></span>
+                  <span className="text-sm text-gray-600">{tr("Yetkazish:")} <strong className="text-black">{selectedProduct.delivery_time}</strong></span>
                 </div>
 
                 {selectedProduct.sizes && selectedProduct.sizes.trim() !== '' && (
                   <div className="mt-6">
-                    <h4 className="font-bold mb-3 text-gray-800">O'lchamni tanlang:</h4>
+                    <h4 className="font-bold mb-3 text-gray-800">{tr("O'lchamni tanlang:")}</h4>
                     <div className="flex gap-2 flex-wrap">
                       {selectedProduct.sizes.split(',').map(size => size.trim()).map(size => (
                         <button key={size} onClick={() => setSelectedSize(size)}
@@ -861,7 +936,7 @@ export default function Home() {
                 )}
 
                 <div className="mt-6">
-                  <h4 className="font-bold mb-3 text-gray-800">Promokod</h4>
+                  <h4 className="font-bold mb-3 text-gray-800">{tr("Promokod")}</h4>
                   <div className="flex gap-2">
                     <input type="text" value={promoInput} onChange={e => { setPromoInput(e.target.value); setPromoError(false); }}
                       placeholder="Kodni kiriting" 
@@ -886,7 +961,7 @@ export default function Home() {
                     </div>
                     <textarea ref={reviewInputRef} value={reviewInput} onChange={e => setReviewInput(e.target.value)}
                       placeholder="Mahsulot haqida fikringiz..." className="w-full bg-white border border-gray-200 rounded-xl p-3 outline-none focus:border-purple-500 h-24 mb-2"></textarea>
-                    <button onClick={submitReview} className="w-full bg-purple-100 text-purple-700 font-bold py-2 rounded-xl">Jo'natish</button>
+                    <button onClick={submitReview} className="w-full bg-purple-100 text-purple-700 font-bold py-2 rounded-xl">{tr("Jo'natish")}</button>
                   </div>
 
                   {reviews.length === 0 ? (
@@ -929,6 +1004,56 @@ export default function Home() {
       )}
       
       <style jsx global>{`
+      [data-theme='dark'].omni-app {
+        background-color: #0f172a !important;
+        color: #f8fafc !important;
+      }
+      [data-theme='dark'] .bg-white,
+      [data-theme='dark'] .bg-gray-50,
+      [data-theme='dark'] .bg-gray-100 {
+        background-color: #1e293b !important;
+        border-color: #334155 !important;
+        color: #f8fafc !important;
+      }
+      [data-theme='dark'] .text-gray-900,
+      [data-theme='dark'] .text-gray-800,
+      [data-theme='dark'] .text-gray-700,
+      [data-theme='dark'] .text-gray-600,
+      [data-theme='dark'] .text-gray-500 {
+        color: #cbd5e1 !important;
+      }
+      [data-theme='dark'] .text-black {
+        color: #ffffff !important;
+      }
+      [data-theme='dark'] input,
+      [data-theme='dark'] textarea {
+        background-color: #0f172a !important;
+        color: #ffffff !important;
+        border-color: #475569 !important;
+      }
+      [data-theme='dark'] button.bg-white {
+        background-color: #1e293b !important;
+      }
+      [data-theme='dark'] .border-gray-100,
+      [data-theme='dark'] .border-gray-200 {
+        border-color: #334155 !important;
+      }
+      [data-theme='dark'] .bg-purple-50 {
+        background-color: #1e1b4b !important;
+      }
+      [data-theme='dark'] .text-purple-600 {
+        color: #a78bfa !important;
+      }
+      [data-theme='dark'] .bg-purple-600 {
+        background-color: #8b5cf6 !important;
+      }
+      [data-theme='dark'] .bg-green-50 {
+        background-color: #064e3b !important;
+      }
+      [data-theme='dark'] .text-green-600 {
+        color: #34d399 !important;
+      }
+
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
         @keyframes slide-up {
           from { transform: translateY(100%); }
