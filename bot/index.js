@@ -19,7 +19,7 @@ const supabase = createClient(supabaseUrl || 'https://mock.supabase.co', supabas
 const adminIds = (process.env.ADMIN_IDS || "").split(',').map(id => id.trim());
 const userStates = {};
 
-bot.onText(/\/start/, async (msg) => {
+bot.onText(/\\/start/, async (msg) => {
     const chatId = msg.chat.id;
     const fullName = msg.from.first_name + (msg.from.last_name ? ' ' + msg.from.last_name : '');
     
@@ -33,43 +33,43 @@ bot.onText(/\/start/, async (msg) => {
         console.error("Foydalanuvchini saqlashda xatolik:", err);
     }
 
-    const webAppUrl = `https://shopping-gry5.onrender.com?v=${Date.now()}`;
+    const webAppUrl = \`https://shopping-gry5.onrender.com?v=\${Date.now()}\`;
 
-    const opts = {
-        reply_markup: {
-            keyboard: [
-                [{ text: "🛍 Do'konni ochish", web_app: { url: webAppUrl } }]
-            ],
-            resize_keyboard: true
-        }
-    };
-    
+    // Only give the admin the broadcast keyboard, regular users get the inline button exactly as it was
     if (adminIds.includes(chatId.toString())) {
-        opts.reply_markup.keyboard.push([{ text: "📢 Xabar yuborish (Hammaga)" }]);
+        bot.sendMessage(chatId, \`Assalomu alaykum, \${fullName}!\\n\\nDo'konimizga xush kelibsiz. Pastdagi tugmani bosib xaridlarni boshlang:\`, {
+            reply_markup: {
+                keyboard: [
+                    [{ text: "🛍 Do'konni ochish", web_app: { url: webAppUrl } }],
+                    [{ text: "📢 Xabar yuborish (Hammaga)" }]
+                ],
+                resize_keyboard: true
+            }
+        });
+    } else {
+        bot.sendMessage(chatId, \`Assalomu alaykum, \${fullName}!\\n\\nDo'konimizga xush kelibsiz. Pastdagi tugmani bosib xaridlarni boshlang:\`, {
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: "🛍 Do'konni ochish",
+                            web_app: { url: webAppUrl }
+                        }
+                    ]
+                ]
+            }
+        });
     }
-
-    bot.sendMessage(chatId, `Assalomu alaykum, ${fullName}!\n\nDo'konimizga xush kelibsiz. Pastdagi tugmani bosib xaridlarni boshlang:`, opts);
 });
 
 bot.on('message', async (msg) => {
-    if (!msg.text) {
-        // If it's a photo/video but not in waiting state, ignore unless it triggers broadcast
-    }
+    if (!msg.text) return; // If photo/video but not in waiting state, ignore unless handled elsewhere
     
     const chatId = msg.chat.id.toString();
     const text = msg.text || "";
 
-    const webAppUrl = `https://shopping-gry5.onrender.com?v=${Date.now()}`;
-    const defaultKeyboard = {
-        keyboard: [
-            [{ text: "🛍 Do'konni ochish", web_app: { url: webAppUrl } }]
-        ],
-        resize_keyboard: true
-    };
-    if (adminIds.includes(chatId)) {
-        defaultKeyboard.keyboard.push([{ text: "📢 Xabar yuborish (Hammaga)" }]);
-    }
-
+    const webAppUrl = \`https://shopping-gry5.onrender.com?v=\${Date.now()}\`;
+    
     if (text === "📢 Xabar yuborish (Hammaga)" && adminIds.includes(chatId)) {
         userStates[chatId] = 'WAITING_FOR_BROADCAST';
         return bot.sendMessage(chatId, "Iltimos, hammaga yubormoqchi bo'lgan xabaringizni yozing (Matn, rasm yoki video yuborishingiz mumkin):", {
@@ -83,7 +83,13 @@ bot.on('message', async (msg) => {
     if (text === "❌ Bekor qilish" && userStates[chatId]) {
         delete userStates[chatId];
         return bot.sendMessage(chatId, "Xabar yuborish bekor qilindi.", {
-            reply_markup: defaultKeyboard
+            reply_markup: {
+                keyboard: [
+                    [{ text: "🛍 Do'konni ochish", web_app: { url: webAppUrl } }],
+                    [{ text: "📢 Xabar yuborish (Hammaga)" }]
+                ],
+                resize_keyboard: true
+            }
         });
     }
 
@@ -117,8 +123,14 @@ bot.on('message', async (msg) => {
             await new Promise(r => setTimeout(r, 40)); 
         }
 
-        return bot.sendMessage(chatId, `✅ Xabar yuborish yakunlandi.\n\nYuborildi: ${successCount} ta\nYetib bormadi (Botni o'chirganlar): ${failCount} ta`, {
-            reply_markup: defaultKeyboard
+        return bot.sendMessage(chatId, \`✅ Xabar yuborish yakunlandi.\\n\\nYuborildi: \${successCount} ta\\nYetib bormadi (Botni o'chirganlar): \${failCount} ta\`, {
+            reply_markup: {
+                keyboard: [
+                    [{ text: "🛍 Do'konni ochish", web_app: { url: webAppUrl } }],
+                    [{ text: "📢 Xabar yuborish (Hammaga)" }]
+                ],
+                resize_keyboard: true
+            }
         });
     }
 });
