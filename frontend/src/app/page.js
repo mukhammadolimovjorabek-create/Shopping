@@ -75,18 +75,23 @@ export default function Home() {
     if (showLoading && products.length === 0) setLoading(true);
     
     try {
-      const { data: productsData } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-      const { data: reviewsData } = await supabase.from('reviews').select('*').catch(()=>null);
+      const { data: productsData, error: pErr } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+      
+      let reviewsData = [];
+      try {
+        const res = await supabase.from('reviews').select('*');
+        if (res.data) reviewsData = res.data;
+      } catch(e) {}
       
       if (productsData) {
         const combined = productsData.map(p => ({
           ...p,
-          reviews: (reviewsData || []).filter(r => r.product_id === p.id)
+          reviews: reviewsData.filter(r => r.product_id === p.id)
         }));
         setProducts(combined);
       }
     } catch (e) {
-      console.error(e);
+      console.error("Products error:", e);
     }
     
     if (showLoading) setLoading(false);
