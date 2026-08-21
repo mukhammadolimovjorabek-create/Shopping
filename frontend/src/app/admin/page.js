@@ -20,6 +20,9 @@ export default function AdminPage() {
   const [category, setCategory] = useState('Men');
   const [imageFile, setImageFile] = useState(null);
   
+  const [editingProductId, setEditingProductId] = useState(null);
+  const [existingImageUrl, setExistingImageUrl] = useState('');
+  
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
   const [activeTab, setActiveTab] = useState('products'); // products, orders, reviews, messages
@@ -107,10 +110,14 @@ export default function AdminPage() {
     }
   };
 
-  const handleAddProduct = async (e) => {
+  const handleSaveProduct = async (e) => {
     e.preventDefault();
-    if (!title || !price || !imageFile) {
-      setMessage('Xatolik: Nomi, narxi va rasmi kiritilishi shart!');
+    if (!title || !price) {
+      setMessage('Xatolik: Nomi va narxi kiritilishi shart!');
+      return;
+    }
+    if (!editingProductId && !imageFile) {
+      setMessage('Xatolik: Yangi mahsulot uchun rasm kiritilishi shart!');
       return;
     }
     
@@ -118,20 +125,26 @@ export default function AdminPage() {
     setMessage('');
 
     try {
-      const fileExt = imageFile.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
+      let finalImageUrl = existingImageUrl;
       
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('product_images')
-        .upload(fileName, imageFile);
+      if (imageFile) {
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('product_images')
+          .upload(fileName, imageFile);
 
-      if (uploadError) throw uploadError;
+        if (uploadError) throw uploadError;
 
-      const { data: publicUrlData } = supabase.storage
-        .from('product_images')
-        .getPublicUrl(fileName);
+        const { data: publicUrlData } = supabase.storage
+          .from('product_images')
+          .getPublicUrl(fileName);
+          
+        finalImageUrl = publicUrlData.publicUrl;
+      }
 
-      const { error: insertError } = await supabase.from('products').insert([{
+      const productData = {
         title,
         price_usd: parseFloat(price) || 0,
         original_price: originalPrice ? parseFloat(originalPrice) : 0,
@@ -141,21 +154,51 @@ export default function AdminPage() {
         promo_code: promoCode || '',
         promo_percent: promoPercent ? parseInt(promoPercent) : 0,
         category,
-        image_url: publicUrlData.publicUrl,
+        image_url: finalImageUrl,
         description: null,
         weight_kg: 0
-      }]);
+      };
 
-      if (insertError) throw insertError;
+      if (editingProductId) {
+        const { error } = await supabase.from('products').update(productData).eq('id', editingProductId);
+        if (error) throw error;
+        setMessage('Mahsulot muvaffaqiyatli yangilandi!');
+      } else {
+        const { error } = await supabase.from('products').insert([productData]);
+        if (error) throw error;
+        setMessage('Mahsulot muvaffaqiyatli qo\'shildi!');
+      }
 
-      setMessage('Mahsulot muvaffaqiyatli qo\'shildi!');
       setTitle(''); setPrice(''); setOriginalPrice(''); setSizes(''); setPromoCode(''); setPromoPercent(''); setImageFile(null);
+      setEditingProductId(null);
+      setExistingImageUrl('');
       fetchProducts();
     } catch (error) {
       setMessage('Xatolik yuz berdi: ' + error.message);
     } finally {
       setUploading(false);
     }
+  };
+
+  const startEditing = (product) => {
+    setEditingProductId(product.id);
+    setTitle(product.title || '');
+    setPrice(product.price_usd?.toString() || '');
+    setOriginalPrice(product.original_price?.toString() || '');
+    setStockCount(product.stock_count?.toString() || '');
+    setDeliveryTime(product.delivery_time || '');
+    setSizes(product.sizes || '');
+    setPromoCode(product.promo_code || '');
+    setPromoPercent(product.promo_percent?.toString() || '');
+    setCategory(product.category || 'Men');
+    setExistingImageUrl(product.image_url || '');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  
+  const cancelEditing = () => {
+    setEditingProductId(null);
+    setTitle(''); setPrice(''); setOriginalPrice(''); setSizes(''); setPromoCode(''); setPromoPercent(''); setImageFile(null);
+    setExistingImageUrl('');
   };
 
   const handleDelete = async (id, imageUrl) => {
@@ -213,7 +256,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        <form onSubmit={handleAddProduct} className="space-y-4">
+        <form onSubmit={handleSaveProduct} className="space-y-4">
           <div>
             <label className="block text-sm text-gray-400 mb-1">Mahsulot nomi</label>
             <input type="text" value={title} onChange={e => setTitle(e.target.value)} 
@@ -246,24 +289,22 @@ export default function AdminPage() {
             <div>
               <label className="block text-sm text-gray-400 mb-1">Yetkazib berish (Matn)</label>
               <input type="text" value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} 
-                className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
-                placeholder="Masalan: Ertaga" />
+                className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1">O'lchamlar (Vergul bilan ajrating)</label>
+            <label className="block text-sm text-gray-400 mb-1">Razmerlar (vergul bilan ajrating)</label>
             <input type="text" value={sizes} onChange={e => setSizes(e.target.value)} 
               className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
-              placeholder="Masalan: 39, 40, 41 yoki S, M, L" />
+              placeholder="Masalan: 39, 40, 41, 42" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-gray-400 mb-1">Promokod (Majburiy emas)</label>
-              <input type="text" value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())} 
-                className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
-                placeholder="Masalan: SALE10" />
+              <input type="text" value={promoCode} onChange={e => setPromoCode(e.target.value)} 
+                className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
               <label className="block text-sm text-gray-400 mb-1">Promokod chegirmasi (%)</label>
@@ -282,15 +323,28 @@ export default function AdminPage() {
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Mahsulot rasmi</label>
+            <label className="block text-sm text-gray-400 mb-1">
+              Mahsulot rasmi {editingProductId && "(Rasmni o'zgartirish uchun yangisini tanlang)"}
+            </label>
+            {editingProductId && existingImageUrl && (
+              <img src={existingImageUrl} className="h-20 object-contain mb-2 rounded-lg" alt="Joriy rasm" />
+            )}
             <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files[0])} 
-              className="w-full bg-gray-700 rounded-xl p-2 text-white outline-none" required />
+              className="w-full bg-gray-700 rounded-xl p-2 text-white outline-none" {...(!editingProductId && { required: true })} />
           </div>
 
-          <button type="submit" disabled={uploading} 
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-xl transition-all disabled:opacity-50">
-            {uploading ? 'Yuklanmoqda...' : 'Mahsulotni Saqlash'}
-          </button>
+          <div className="flex gap-2">
+            <button type="submit" disabled={uploading} 
+              className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-xl transition-all disabled:opacity-50">
+              {uploading ? 'Yuklanmoqda...' : (editingProductId ? "O'zgarishlarni Saqlash" : "Qo'shish")}
+            </button>
+            {editingProductId && (
+              <button type="button" onClick={cancelEditing} 
+                className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-xl transition-all">
+                Bekor qilish
+              </button>
+            )}
+          </div>
         </form>
       </div>
       
@@ -313,12 +367,15 @@ export default function AdminPage() {
                     )}
                   </div>
                 </div>
-                <div className="flex gap-2 mt-2">
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <button onClick={() => startEditing(p)} className="flex-1 bg-blue-600/20 text-blue-400 py-2 rounded-lg hover:bg-blue-600 hover:text-white transition font-bold text-sm">
+                    Tahrirlash
+                  </button>
                   <button onClick={() => handleDelete(p.id, p.image_url)} className="flex-1 bg-red-600/20 text-red-400 py-2 rounded-lg hover:bg-red-600 hover:text-white transition font-bold text-sm">
                     O'chirish
                   </button>
                   <button onClick={() => handleToggleStock(p.id, p.description)} className="flex-1 bg-gray-700 text-gray-300 py-2 rounded-lg hover:bg-gray-600 transition font-bold text-sm">
-                    {p.description === 'OUT_OF_STOCK' ? 'Sotuvga chiqarish' : 'Tugadi qilish'}
+                    {p.description === 'OUT_OF_STOCK' ? 'Sotuvga qaytarish' : 'Tugadi'}
                   </button>
                 </div>
               </div>

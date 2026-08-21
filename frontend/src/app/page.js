@@ -9,10 +9,15 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('home');
   const [cart, setCart] = useState([]);
   
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [newProfileName, setNewProfileName] = useState('');
+  const [onboardName, setOnboardName] = useState('');
+  const [hasOnboarded, setHasOnboarded] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedSize, setSelectedSize] = useState('');
   const [promoInput, setPromoInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState(null);
+  const [promoError, setPromoError] = useState(false);
   
   const [reviews, setReviews] = useState([]);
   const [ratingInput, setRatingInput] = useState(0);
@@ -58,7 +63,19 @@ export default function Home() {
         const user = window.Telegram.WebApp.initDataUnsafe?.user;
         if (user) {
           setTgUser(user);
-          setCheckoutName(user.first_name + (user.last_name ? ' ' + user.last_name : ''));
+          
+          const sName = localStorage.getItem(`omni_name_${user.id}`);
+          const sAvatar = localStorage.getItem(`omni_avatar_${user.id}`);
+          
+          if (!sName) {
+            setHasOnboarded(false); // majburiy so'rov
+          } else {
+            setProfileName(sName);
+            setCheckoutName(sName);
+          }
+          
+          setProfileAvatar(sAvatar || null);
+          setNewProfileName(sName || user.first_name);
         }
         
         const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || '5466728043').split(',');
@@ -105,23 +122,37 @@ export default function Home() {
   };
 
   const submitReview = async () => {
-    if (!reviewInput.trim()) return alert("Iltimos, sharh matnini yozing.");
-    
-    const { error } = await supabase.from('reviews').insert([{
+    if (ratingInput === 0) {
+      alert("Iltimos, avval yulduzchalarni tanlab baho bering.");
+      return;
+    }
+
+    let { error } = await supabase.from('reviews').insert([{
       product_id: selectedProduct.id,
       user_id: tgUser?.id?.toString() || 'anonymous',
-      user_name: tgUser?.first_name || 'Mijoz',
+      user_name: profileName || 'Mijoz',
       text: reviewInput,
       rating: ratingInput
     }]);
 
+    if (error && error.message.includes('rating')) {
+      const fallback = await supabase.from('reviews').insert([{
+        product_id: selectedProduct.id,
+        user_id: tgUser?.id?.toString() || 'anonymous',
+        user_name: profileName || 'Mijoz',
+        text: reviewInput
+      }]);
+      error = fallback.error;
+    }
+
     if (error) {
-      alert("Xatolik (Yulduzcha SQL kodi yozilmagan bo'lishi mumkin): " + error.message);
+      alert("Kechirasiz, sharhni jo'natishda xatolik yuz berdi.");
     } else {
       setReviewInput('');
+      setRatingInput(0);
       fetchReviews(selectedProduct.id);
       fetchProducts(false);
-      alert("Sharhingiz qoldirildi, rahmat!");
+      alert("Sharhingiz qabul qilindi!");
       if (profileView === 'reviews') loadMyReviews();
     }
   };
@@ -131,14 +162,14 @@ export default function Home() {
     try {
       await supabase.from('messages').insert([{
         user_id: tgUser?.id?.toString() || 'anonymous',
-        user_name: tgUser?.first_name || 'Mijoz',
+        user_name: profileName || 'Mijoz',
         text: supportText
       }]);
       alert("Murojaatingiz yuborildi! Tez orada javob qaytaramiz.");
       setSupportText('');
       setProfileView('main');
     } catch (e) {
-      alert("Jo'natishda xatolik (SQL kodi bajarilmagan bo'lishi mumkin): " + e.message);
+      alert("Jo'natishda xatolik yuz berdi.");
     }
   };
 
@@ -172,11 +203,17 @@ export default function Home() {
   };
 
   const applyPromo = () => {
+    if (!promoInput.trim()) {
+      setPromoError(true);
+      return;
+    }
     if (selectedProduct.promo_code && promoInput.toUpperCase() === selectedProduct.promo_code.toUpperCase()) {
       setAppliedPromo(selectedProduct.promo_percent);
+      setPromoError(false);
       alert(`Promokod qabul qilindi! ${selectedProduct.promo_percent}% chegirma qo'llandi.`);
     } else {
-      alert("Promokod xato yoki muddati o'tgan!");
+      setPromoError(true);
+      alert("Bu promokod xato yoki eskirgan!");
       setAppliedPromo(null);
     }
   };
@@ -208,9 +245,19 @@ export default function Home() {
     setCart(cart.filter(item => item.cart_id !== cartId));
   };
 
+  const isValidPhone = (phone) => {
+    const p = phone.trim();
+    if (p.startsWith('+998') && p.length === 13) return true;
+    if (!p.startsWith('+') && p.length === 9 && !isNaN(p)) return true;
+    return false;
+  };
+
   const handleNextToPayment = () => {
     if (!checkoutName.trim() || !checkoutPhone1.trim() || !checkoutPhone2.trim()) {
       return alert("Iltimos, ism va har ikkala telefon raqamini to'ldiring!");
+    }
+    if (!isValidPhone(checkoutPhone1) || !isValidPhone(checkoutPhone2)) {
+      return alert("Telefon raqami noto'g'ri! Faqat quyidagi formatlarda kiriting:\n+998901234567 (13 ta belgi) yoki\n901234567 (9 ta belgi)");
     }
     setCheckoutStep(2);
   };
@@ -266,7 +313,31 @@ export default function Home() {
         }
       }
 
-      setCart([]);
+      // Stock qisqartirish va ogohlantirish yuborish
+      for (const item of cart) {
+        const prod = products.find(p => p.id === item.id);
+        if (prod) {
+          const newStock = (prod.stock_count || 1) - 1;
+          await supabase.from('products').update({ stock_count: newStock }).eq('id', item.id);
+          
+          if (newStock <= 10 && newStock >= 0) {
+            for (const adminId of ADMIN_IDS) {
+              if (adminId.trim()) {
+                fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    chat_id: adminId.trim(),
+                    text: `⚠️ <b>Omborda tovar kam qoldi!</b>\n\n📦 Mahsulot: <b>${prod.title}</b>\n📉 Qoldiq: Atigi <b>${newStock} ta</b> qoldi.`,
+                    parse_mode: 'HTML'
+                  })
+                }).catch(e => console.error(e));
+              }
+            }
+          }
+        }
+      }
+
       setCheckoutStep(0);
       setReceiptFile(null);
       setCheckoutSuccess(true);
@@ -303,6 +374,41 @@ export default function Home() {
 
   if (loading) return <div className="flex h-screen items-center justify-center bg-gray-50 text-purple-500 font-bold">Yuklanmoqda...</div>;
 
+  const handleOnboard = () => {
+    if (!onboardName.trim()) return alert("Iltimos, ismingizni kiriting");
+    if (tgUser) {
+      localStorage.setItem(`omni_name_${tgUser.id}`, onboardName);
+      setProfileName(onboardName);
+      setCheckoutName(onboardName);
+      setNewProfileName(onboardName);
+    }
+    setHasOnboarded(true);
+  };
+
+  if (!hasOnboarded) {
+    return (
+      <div className="flex flex-col h-screen bg-gradient-to-br from-purple-50 via-white to-orange-50 items-center justify-center p-6 text-center animate-fade-in">
+        <h1 className="text-3xl font-extrabold mb-2 text-gray-900"><span className="text-purple-600">Omni</span><span className="text-orange-500">Shop</span> ga xush kelibsiz!</h1>
+        <p className="text-gray-500 mb-8 font-medium">Xaridlarni boshlashdan oldin, iltimos ism-familiyangizni kiriting:</p>
+        <div className="w-full max-w-sm bg-white p-6 rounded-3xl shadow-xl border border-gray-100">
+          <input 
+            type="text" 
+            placeholder="Ismingiz va familiyangiz" 
+            value={onboardName}
+            onChange={(e) => setOnboardName(e.target.value)}
+            className="w-full border border-gray-200 rounded-xl p-4 text-center font-bold text-lg mb-4 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
+          />
+          <button 
+            onClick={handleOnboard}
+            className="w-full bg-purple-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-purple-200 active:scale-95 transition-transform"
+          >
+            Do'konni ochish
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (checkoutSuccess) {
     return (
       <div className="flex flex-col h-screen items-center justify-center bg-green-50 animate-fade-in px-6 text-center">
@@ -316,14 +422,17 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden relative">
+    <div className="flex flex-col h-screen bg-gradient-to-br from-purple-50 via-gray-50 to-orange-50 text-gray-900 font-sans overflow-hidden relative">
       
       <div className="bg-white px-4 py-3 flex justify-between items-center shadow-sm z-10">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight flex items-center gap-0.5">
-            <span className="text-purple-600">Omni</span><span className="text-orange-500">Shop</span>
+          <h1 className="text-2xl font-extrabold tracking-tight flex items-center gap-1.5">
+            <span>
+              <span className="text-purple-600">Omni</span><span className="text-orange-500">Shop</span>
+            </span>
+            <span className="text-xl">🛍️</span>
           </h1>
-          <p className="text-[10px] text-gray-500 font-medium">Xitoydan to'g'ridan-to'g'ri 🇨🇳</p>
+          <p className="text-[10px] text-gray-500 font-medium">Xitoydan to'g'ridan-to'g'ri 🇨🇳 🇺🇿</p>
         </div>
         
         {isAdmin && (
@@ -428,28 +537,88 @@ export default function Home() {
         )}
 
         {activeTab === 'profile' && profileView === 'main' && (
-          <div className="p-4">
-            <div className="bg-white p-6 rounded-3xl shadow-sm text-center mb-4">
-              <div className="w-20 h-20 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-3xl font-bold mx-auto mb-3">
-                {tgUser ? tgUser.first_name[0] : 'U'}
-              </div>
-              <h2 className="text-xl font-bold">{tgUser ? tgUser.first_name : 'Foydalanuvchi'}</h2>
-              <p className="text-gray-500 text-sm">{tgUser ? '@'+(tgUser.username || '') : ''}</p>
+          <div className="p-4 space-y-4">
+            <div className="bg-white p-6 rounded-3xl shadow-sm text-center relative">
+              <label className="w-24 h-24 mx-auto mb-3 block relative cursor-pointer">
+                {profileAvatar ? (
+                   <img src={profileAvatar} className="w-full h-full rounded-full object-cover shadow-md border-2 border-purple-100" />
+                ) : (
+                   <div className="w-full h-full bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-3xl font-bold shadow-md">
+                     {profileName.charAt(0)}
+                   </div>
+                )}
+                <div className="absolute bottom-0 right-0 bg-white rounded-full p-1.5 shadow-lg border border-gray-100 text-sm">
+                  📷
+                </div>
+                <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+              </label>
+
+              {isEditingProfile ? (
+                <div className="flex flex-col items-center gap-2 mt-4">
+                  <input type="text" value={newProfileName} onChange={e => setNewProfileName(e.target.value)} className="border border-gray-200 rounded-lg p-2 text-center outline-none focus:border-purple-500" />
+                  <button onClick={handleProfileSave} className="bg-purple-600 text-white px-6 py-2 rounded-xl font-bold text-sm">Saqlash</button>
+                </div>
+              ) : (
+                <div className="mt-2">
+                  <h2 className="text-xl font-bold flex items-center justify-center gap-2">
+                    {profileName} 
+                    <button onClick={() => setIsEditingProfile(true)} className="text-gray-400 hover:text-purple-600 text-lg">✏️</button>
+                  </h2>
+                  <p className="text-gray-500 text-sm">{tgUser ? '@'+(tgUser.username || '') : ''}</p>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
-              <button onClick={loadMyOrders} className="w-full bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50">
-                <span className="font-semibold text-gray-700">📦 Buyurtmalarim</span>
+              <button onClick={() => { setProfileView('orders'); loadMyOrders(); }} className="w-full bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50 border border-gray-100">
+                <span className="font-semibold text-gray-700 flex items-center gap-2"><span className="text-xl">📦</span> Buyurtmalarim</span>
                 <span className="text-gray-400">›</span>
               </button>
-              <button onClick={loadMyReviews} className="w-full bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50">
-                <span className="font-semibold text-gray-700">💬 Sharhlar</span>
+              <button onClick={() => { setProfileView('reviews'); loadMyReviews(); }} className="w-full bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50 border border-gray-100">
+                <span className="font-semibold text-gray-700 flex items-center gap-2"><span className="text-xl">⭐</span> Sharhlarim</span>
                 <span className="text-gray-400">›</span>
               </button>
-              <button onClick={() => setProfileView('support')} className="w-full bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50">
-                <span className="font-semibold text-gray-700">🎧 Sotuvchiga murojaat</span>
+              <button onClick={() => { setProfileView('support'); loadMyMessages(); }} className="w-full bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50 border border-gray-100">
+                <span className="font-semibold text-gray-700 flex items-center gap-2"><span className="text-xl">🎧</span> Sotuvchiga murojaat</span>
                 <span className="text-gray-400">›</span>
               </button>
+              <button onClick={() => setProfileView('settings')} className="w-full bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-gray-50 border border-gray-100">
+                <span className="font-semibold text-gray-700 flex items-center gap-2"><span className="text-xl">⚙️</span> Sozlamalar</span>
+                <span className="text-gray-400">›</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'profile' && profileView === 'settings' && (
+          <div className="p-4 pb-10">
+            <button onClick={() => setProfileView('main')} className="mb-4 text-purple-600 font-bold flex items-center gap-1">
+              <span>‹</span> Orqaga
+            </button>
+            <h2 className="text-xl font-bold mb-4">⚙️ Sozlamalar</h2>
+            
+            <div className="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-gray-100">
+              <h3 className="font-bold text-gray-800 mb-3">🌐 Tilni o'zgartirish</h3>
+              <div className="flex gap-2">
+                <button className="flex-1 bg-purple-600 text-white font-bold py-2.5 rounded-xl shadow-sm">
+                  🇺🇿 O'zbekcha
+                </button>
+                <button onClick={() => alert("Rus tili tez kunda qo'shiladi! (Hali tarjimalar to'liq emas)")} className="flex-1 bg-gray-100 text-gray-500 font-bold py-2.5 rounded-xl active:scale-95 transition">
+                  🇷🇺 Русский
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-gray-100">
+              <h3 className="font-bold text-gray-800 mb-3">🎨 Mavzuni o'zgartirish</h3>
+              <div className="flex gap-2">
+                <button className="flex-1 bg-purple-600 text-white font-bold py-2.5 rounded-xl shadow-sm">
+                  ☀️ Yorug'
+                </button>
+                <button onClick={() => alert("Qorong'i (Tungi) mavzu dizayni ishlab chiqilmoqda! Tez kunda qo'shiladi.")} className="flex-1 bg-gray-100 text-gray-500 font-bold py-2.5 rounded-xl active:scale-95 transition">
+                  🌙 Qorong'i
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -694,8 +863,9 @@ export default function Home() {
                 <div className="mt-6">
                   <h4 className="font-bold mb-3 text-gray-800">Promokod</h4>
                   <div className="flex gap-2">
-                    <input type="text" value={promoInput} onChange={e => setPromoInput(e.target.value)}
-                      placeholder="Kodni kiriting" className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-2 outline-none focus:border-purple-500 uppercase" />
+                    <input type="text" value={promoInput} onChange={e => { setPromoInput(e.target.value); setPromoError(false); }}
+                      placeholder="Kodni kiriting" 
+                      className={`flex-1 border-2 ${promoError ? 'border-red-500 bg-red-50 text-red-900 focus:border-red-600' : 'border-gray-200 focus:border-purple-500'} rounded-xl px-4 py-2 outline-none uppercase transition-colors`} />
                     <button onClick={applyPromo} className="bg-black text-white px-5 py-2 rounded-xl font-bold active:scale-95 transition-transform">
                       Qo'llash
                     </button>
