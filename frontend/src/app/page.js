@@ -172,7 +172,11 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: customerTelegramId, text: msg })
-      }).catch(e => console.log(e));
+      }).then(res => {
+        if(!res.ok) alert("Xabar yuborishda xato: " + res.status);
+      }).catch(e => alert("Xabar yuborib bo'lmadi: " + e));
+    } else if (!customerTelegramId) {
+      alert("Mijozning Telegram ID si topilmadi!");
     }
     
     loadAllOrders();
