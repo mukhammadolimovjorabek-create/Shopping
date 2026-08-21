@@ -456,7 +456,7 @@ export default function AdminPage() {
             reviews.map(r => (
               <div key={r.id} className="bg-gray-800 p-5 rounded-2xl shadow-lg border border-gray-700">
                 <p className="font-bold text-yellow-500 mb-1">{'⭐'.repeat(r.rating || 5)}</p>
-                <p className="text-sm text-gray-400 mb-2">👤 {r.user_name} | 📦 {r.products?.title}</p>
+                <p className="text-sm text-gray-400 mb-2">👤 {r.user_name || r.users?.full_name || 'Noma\'lum'} | 📦 {r.products?.title}</p>
                 <p className="text-white mb-4 bg-gray-700/50 p-3 rounded-xl">{r.text}</p>
                 
                 <div className="flex gap-2">
@@ -475,7 +475,7 @@ export default function AdminPage() {
           {messages.length === 0 ? <p className="text-gray-400">Murojaatlar yo'q.</p> : (
             messages.map(m => (
               <div key={m.id} className="bg-gray-800 p-5 rounded-2xl shadow-lg border border-gray-700">
-                <p className="text-sm text-gray-400 mb-2">👤 {m.user_name}</p>
+                <p className="text-sm text-gray-400 mb-2">👤 {m.user_name || m.users?.full_name || 'Noma\'lum'}</p>
                 <p className="text-white mb-4 bg-gray-700/50 p-3 rounded-xl">{m.text}</p>
                 
                 <div className="flex gap-2">
