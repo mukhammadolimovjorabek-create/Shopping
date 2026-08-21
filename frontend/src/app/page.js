@@ -103,7 +103,7 @@ export default function Home() {
         const userIds = [...new Set(ordersData.map(o => o.user_id).filter(Boolean))];
         let usersData = [];
         if (userIds.length > 0) {
-          const { data: uData } = await supabase.from('users').select('id, first_name, username, phone_number, full_name').in('id', userIds);
+          const { data: uData } = await supabase.from('users').select('id, first_name, username, phone_number, full_name, telegram_id').in('id', userIds);
           if (uData) usersData = uData;
         }
         const merged = ordersData.map(o => ({ ...o, users: usersData.find(u => u.id === o.user_id) || null }));
@@ -161,8 +161,20 @@ export default function Home() {
     }
   };
 
-  const updateOrderStatus = async (orderId, newStatus) => {
+  const updateOrderStatus = async (orderId, newStatus, customerTelegramId) => {
     await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
+    
+    // Yuborish (Notification to customer)
+    if (customerTelegramId && (newStatus === 'Qabul qilindi' || newStatus === 'Bekor qilindi')) {
+      const BOT_TOKEN = "8977055750:AAHvhnSZHJyJ0dqUhVIQjpp2UrE9udVgpYI";
+      let msg = newStatus === 'Qabul qilindi' ? "✅ Sizning buyurtmangiz tasdiqlandi va qabul qilindi!" : "❌ Kechirasiz, buyurtmangiz bekor qilindi.";
+      fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: customerTelegramId, text: msg })
+      }).catch(e => console.log(e));
+    }
+    
     loadAllOrders();
   };
 
@@ -864,7 +876,7 @@ export default function Home() {
                       <h3 className="font-bold text-lg text-black dark:text-white mb-3">⚙️ Boshqaruv (Status)</h3>
                       <select 
                         value={order.status || 'Tekshirilmoqda'} 
-                        onChange={(e) => updateOrderStatus(order.id, e.target.value)}
+                        onChange={(e) => updateOrderStatus(order.id, e.target.value, order.users?.telegram_id)}
                         className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-black dark:text-white font-bold rounded-xl p-3 outline-none mb-3"
                       >
                         <option value="Tekshirilmoqda">Tekshirilmoqda</option>
@@ -877,10 +889,10 @@ export default function Home() {
                       </select>
                       
                       <div className="flex gap-2">
-                        <button onClick={() => updateOrderStatus(order.id, 'Qabul qilindi')} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl transition active:scale-95 shadow-sm">
+                        <button onClick={() => updateOrderStatus(order.id, 'Qabul qilindi', order.users?.telegram_id)} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl transition active:scale-95 shadow-sm">
                           ✅ Tasdiqlash
                         </button>
-                        <button onClick={() => updateOrderStatus(order.id, 'Bekor qilindi')} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition active:scale-95 shadow-sm">
+                        <button onClick={() => updateOrderStatus(order.id, 'Bekor qilindi', order.users?.telegram_id)} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition active:scale-95 shadow-sm">
                           ❌ Bekor qilish
                         </button>
                       </div>
@@ -949,18 +961,28 @@ export default function Home() {
               <h2 className="text-xl font-bold mb-4 dark:text-white">🎧 Mijozlar Murojaatlari</h2>
               <div className="space-y-4">
                 {allMessages.map(m => (
-                  <div key={m.id} className="bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 dark:border-gray-700">
-                    <p className="font-bold dark:text-white">{m.users?.first_name}</p>
-                    <p className="text-sm text-black dark:text-white dark:text-gray-300 mt-1">{m.content}</p>
+                  <div key={m.id} className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+                    <p className="font-bold text-black dark:text-white text-lg mb-1">{m.users?.first_name || m.user_name || 'Mijoz'}</p>
+                    <p className="text-sm text-black dark:text-white bg-slate-100 dark:bg-slate-900 p-3 rounded-lg mb-3 border border-slate-200 dark:border-slate-700">{m.text}</p>
+                    
+                    {m.admin_reply && (
+                      <div className="mb-3 p-3 bg-purple-50 dark:bg-purple-900/30 rounded-lg border-l-4 border-purple-500">
+                        <p className="text-xs font-bold text-purple-600 dark:text-purple-400 mb-1">Sizning javobingiz:</p>
+                        <p className="text-sm text-black dark:text-white">{m.admin_reply}</p>
+                      </div>
+                    )}
+                    
                     <div className="mt-3 flex gap-2">
                       <input 
                         type="text" 
-                        placeholder="Javob yozish..." 
-                        className="flex-1 bg-white dark:bg-slate-900 dark:bg-gray-700 border border-slate-300 dark:border-slate-700 dark:border-gray-600 text-sm rounded-lg p-2 dark:text-white"
+                        placeholder={m.admin_reply ? "Javobni o'zgartirish..." : "Javob yozish..."}
+                        className="flex-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-sm rounded-lg p-2 text-black dark:text-white outline-none focus:border-purple-500"
                         value={replyTexts[m.id] || ''}
                         onChange={(e) => setReplyTexts({...replyTexts, [m.id]: e.target.value})}
                       />
-                      <button onClick={() => submitReply(m.user_id, m.id, replyTexts[m.id])} className="bg-purple-600 text-white px-3 py-2 rounded-lg text-sm font-bold">Yuborish</button>
+                      <button onClick={() => submitReply(m.id, m.user_id)} className="bg-purple-600 text-white px-4 rounded-lg font-bold text-sm hover:bg-purple-700 transition">
+                        Yuborish
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -975,7 +997,7 @@ export default function Home() {
             </button>
             <h2 className="text-xl font-bold mb-4">⚙️ {tr("Sozlamalar")}</h2>
             
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm mb-4 border border-slate-200 dark:border-slate-800">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm mb-4 border border-slate-200 dark:border-slate-700">
               <h3 className="font-bold text-black dark:text-white mb-3">🌐 {tr("Tilni o'zgartirish")}</h3>
               <div className="flex gap-2">
                 <button onClick={() => changeLang('uz')} className={`flex-1 font-bold py-2.5 rounded-xl shadow-sm transition ${lang === 'uz' ? 'bg-purple-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-black dark:text-white font-bold'}`}>🇺🇿 O'zbekcha</button>
@@ -984,7 +1006,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm mb-4 border border-slate-200 dark:border-slate-800">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm mb-4 border border-slate-200 dark:border-slate-700">
               <h3 className="font-bold text-black dark:text-white mb-3">🎨 {tr("Mavzuni o'zgartirish")}</h3>
               <div className="flex gap-2">
                 <button onClick={() => changeTheme('light')} className={`flex-1 font-bold py-2.5 rounded-xl shadow-sm transition ${theme === 'light' ? 'bg-purple-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-black dark:text-white font-bold'}`}>☀️ {tr("Yorug'")}</button>
@@ -1044,9 +1066,9 @@ export default function Home() {
                         </div>
                         <div className="flex justify-between items-center mt-1">
                           <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Holati:</span>
-                          <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">
-                            {order.status === 'Tekshirilmoqda' ? '1. To\'lov tekshirilmoqda / Qabul qilindi' : order.status}
-                          </span>
+                          <span className={`text-xs font-bold px-3 py-1.5 rounded-lg ${order.status === 'Qabul qilindi' || order.status === '1. Qabul qilindi' ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300' : 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300'}`}>
+                              {order.status === 'Tekshirilmoqda' ? '1. To\'lov tekshirilmoqda' : order.status}
+                            </span>
                         </div>
                       </div>
                       

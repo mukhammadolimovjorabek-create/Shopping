@@ -13,6 +13,7 @@ export default function AdminPage() {
   const [price, setPrice] = useState('');
   const [originalPrice, setOriginalPrice] = useState('');
   const [stockCount, setStockCount] = useState('10');
+  const [originalStock, setOriginalStock] = useState('10');
   const [deliveryTime, setDeliveryTime] = useState('');
   const [sizes, setSizes] = useState('');
   const [promoCode, setPromoCode] = useState('');
@@ -186,6 +187,8 @@ export default function AdminPage() {
     setPrice(product.price_usd?.toString() || '');
     setOriginalPrice(product.original_price?.toString() || '');
     setStockCount(product.stock_count?.toString() || '');
+      setOriginalStock(product.original_stock?.toString() || '');
+      setOriginalStock(product.original_stock?.toString() || '');
     setDeliveryTime(product.delivery_time || '');
     setSizes(product.sizes || '');
     setPromoCode(product.promo_code || '');
@@ -291,11 +294,17 @@ export default function AdminPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Qoldiq (Soni)</label>
-              <input type="number" value={stockCount} onChange={e => setStockCount(e.target.value)} 
-                className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
-                placeholder="Nechta bor?" />
-            </div>
+              <label className="block text-sm text-gray-400 mb-1">Qoldiq soni (Sotuvdagi)</label>
+                <input type="number" value={stockCount} onChange={e => setStockCount(e.target.value)} 
+                  className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="Qolgan" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Umumiy tovarlar soni (Boshlang'ich)</label>
+                <input type="number" value={originalStock} onChange={e => setOriginalStock(e.target.value)} 
+                  className="w-full bg-gray-700 rounded-xl p-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="Umumiy keltirilgan" />
+              </div>
             <div>
               <label className="block text-sm text-gray-400 mb-1">Yetkazib berish sanasi</label>
               <input type="text" value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} 
@@ -370,7 +379,7 @@ export default function AdminPage() {
                     <div className="flex gap-4 mt-2 text-sm text-gray-400">
                       <p>Sotuv: <span className="text-blue-400 font-bold">{p.price_usd}</span></p>
                       <p>Eski: <span className="line-through">{p.original_price}</span></p>
-                      <p>Qoldiq: <span className="text-green-400 font-bold">{p.stock_count}</span></p>
+                      <p>Qoldiq: <span className="text-green-400 font-bold">{p.stock_count} / {p.original_stock || p.stock_count}</span></p>
                     </div>
                     {p.promo_code && (
                       <p className="text-xs text-purple-400 mt-1">🎟 Promokod: {p.promo_code} (-{p.promo_percent}%)</p>
