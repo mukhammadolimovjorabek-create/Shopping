@@ -89,3 +89,10 @@ bot.on('callback_query', async (query) => {
 console.log('====================================');
 console.log('🤖 Telegram Mini App Bot ishga tushdi...');
 console.log('====================================');
+
+
+const express = require('express');
+const app = express();
+app.get('/', (req, res) => res.send('Bot is running and awake!'));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(Web server is running on port ));
