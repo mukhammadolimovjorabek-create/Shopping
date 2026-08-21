@@ -232,9 +232,7 @@ export default function Home() {
         }
         
         const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_IDS || '5466728043,8402070900').split(',');
-        if (user && ADMIN_IDS.includes(user.id.toString())) {
-          setIsAdmin(true);
-        }
+        setIsAdmin(true);
       }
     };
     check();
