@@ -1,6 +1,8 @@
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const { createClient } = require('@supabase/supabase-js');
+const express = require('express');
+const path = require('path');
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -18,7 +20,6 @@ bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id;
     const fullName = msg.from.first_name + (msg.from.last_name ? ' ' + msg.from.last_name : '');
     
-    // Foydalanuvchini bazaga saqlash
     try {
         await supabase.from('bot_users').upsert({
             id: chatId.toString(),
@@ -29,70 +30,41 @@ bot.onText(/\/start/, async (msg) => {
         console.error("Foydalanuvchini saqlashda xatolik:", err);
     }
 
-    const webAppUrl = (process.env.WEBAPP_URL || 'https://localhost:3000') + '?v=6';
+    // Har doim yangi keshsiz link
+    const webAppUrl = `https://shopping-gry5.onrender.com?v=${Date.now()}`;
 
-    const welcomeMessage = `
-👋 <b>Assalomu alaykum, ${fullName}!</b>
-
-Xitoydan to'g'ridan-to'g'ri tovarlar yetkazib beruvchi maxsus do'konimizga xush kelibsiz! 🇨🇳
-
-🛍️ <i>Hoziroq pastdagi tugmani bosib, eng so'nggi tovarlarimiz bilan tanishing va buyurtma bering.</i>`;
-
-    bot.sendMessage(chatId, welcomeMessage, {
-        parse_mode: 'HTML',
+    const opts = {
         reply_markup: {
             inline_keyboard: [
-                [{ text: "🛒 Do'konni ochish", web_app: { url: webAppUrl } }]
+                [
+                    {
+                        text: "🛍 Do'konni ochish",
+                        web_app: { url: webAppUrl }
+                    }
+                ]
             ]
         }
-    });
-});
-
-bot.onText(/\/broadcast (.+)/, async (msg, match) => {
-    const chatId = msg.chat.id;
-    const adminIds = (process.env.ADMIN_IDS || '').split(',');
-    
-    if (!adminIds.includes(chatId.toString())) {
-        return bot.sendMessage(chatId, "❌ Sizga bu buyruqqa ruxsat yo'q!");
-    }
-
-    const messageToSend = match[1];
-    bot.sendMessage(chatId, "⏳ Xabar yuborilmoqda...");
-
-    try {
-        const { data: users, error } = await supabase.from('bot_users').select('id');
-        if (error) throw error;
-
-        let successCount = 0;
-        let failCount = 0;
-
-        for (const user of users) {
-            try {
-                await bot.sendMessage(user.id, `🔔 <b>Yangi Xabar!</b>\n\n${messageToSend}`, { parse_mode: 'HTML' });
-                successCount++;
-            } catch (err) {
-                failCount++;
-            }
-        }
-
-        bot.sendMessage(chatId, `✅ <b>Xabarnoma yakunlandi!</b>\n\n✔️ Yuborildi: ${successCount} kishiga\n❌ Bloklaganlar: ${failCount} kishi`, { parse_mode: 'HTML' });
-    } catch (err) {
-        bot.sendMessage(chatId, "Xatolik yuz berdi: " + err.message);
-    }
+    };
+    bot.sendMessage(chatId, `Assalomu alaykum, ${fullName}!\n\nDo'konimizga xush kelibsiz. Pastdagi tugmani bosib xaridlarni boshlang:`, opts);
 });
 
 bot.on('callback_query', async (query) => {
-    // keeping empty for now since we'll rebuild orders
     bot.answerCallbackQuery(query.id);
 });
 
 console.log('====================================');
-console.log('🤖 Telegram Mini App Bot ishga tushdi...');
+console.log('🚀 Telegram Mini App Bot ishga tushdi...');
 console.log('====================================');
 
-
-const express = require('express');
 const app = express();
-app.get('/', (req, res) => res.send('Bot is running and awake!'));
+
+// Serve the static frontend
+app.use(express.static(path.join(__dirname, 'out')));
+
+// Handle React routing, return all requests to index.html
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'out', 'index.html'));
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Web server is running on port " + PORT));
