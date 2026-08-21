@@ -87,7 +87,9 @@ export default function Home() {
   const [checkoutStep, setCheckoutStep] = useState(0); // 0: yopiq, 1: malumotlar, 2: to'lov
   const [checkoutName, setCheckoutName] = useState('');
   const [checkoutPhone1, setCheckoutPhone1] = useState('');
-  const [checkoutPhone2, setCheckoutPhone2] = useState('');
+  const [location, setLocation] = useState(null);
+    const [locationLoading, setLocationLoading] = useState(false);
+    const [checkoutPhone2, setCheckoutPhone2] = useState('');
   const [receiptFile, setReceiptFile] = useState(null);
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -352,7 +354,9 @@ export default function Home() {
           total_price_uzs: item.finalPrice,
           pre_payment_amount_uzs: 0,
           status: 'Tekshirilmoqda',
-          receipt_image_url: receiptUrl
+          receipt_image_url: receiptUrl,
+          latitude: location?.lat || null,
+          longitude: location?.lng || null
         }));
         const { error: oErr } = await supabase.from('orders').insert(ordersToInsert);
         if (oErr) console.error("Order Insert Error:", oErr);
@@ -454,13 +458,13 @@ export default function Home() {
       <div data-theme={theme} className="omni-app flex flex-col h-screen bg-gradient-to-br from-purple-50 via-white to-orange-50 items-center justify-center p-6 text-center animate-fade-in">
         <h1 className="text-3xl font-extrabold mb-2 text-gray-900"><span className="text-purple-600">Omni</span><span className="text-orange-500">Shop</span> ga xush kelibsiz!</h1>
         <p className="text-gray-500 mb-8 font-medium">Xaridlarni boshlashdan oldin, iltimos ism-familiyangizni kiriting:</p>
-        <div className="w-full max-w-sm bg-white p-6 rounded-3xl shadow-xl border border-gray-100">
+        <div className="w-full max-w-sm bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700">
           <input 
             type="text" 
             placeholder={tr("Ismingiz va familiyangiz")} 
             value={onboardName}
             onChange={(e) => setOnboardName(e.target.value)}
-            className="w-full border border-gray-200 rounded-xl p-4 text-center font-bold text-lg mb-4 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
+            className="w-full border border-gray-200 dark:border-gray-700 bg-transparent rounded-xl p-4 text-center font-bold text-lg mb-4 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all text-gray-900 dark:text-white"
           />
           <button 
             onClick={handleOnboard}
