@@ -363,7 +363,7 @@ export default function Home() {
                   
                   <div className="mt-2 px-1">
                     {discount > 0 && (
-                      <p className="text-gray-400 line-through text-[11px] leading-tight">{formatPrice(p.original_price)}</p>
+                      <p className="text-gray-400 line-through decoration-red-400/70 italic font-medium text-[11px] leading-tight">{formatPrice(p.original_price)}</p>
                     )}
                     <p className="text-sm font-extrabold text-gray-900 leading-tight">{formatPrice(p.price_usd)}</p>
                     <p className="text-xs text-gray-600 mt-1 line-clamp-2 leading-snug">{p.title}</p>
@@ -656,7 +656,7 @@ export default function Home() {
                       <span className="text-red-500 text-sm font-bold bg-red-100 px-2 py-0.5 rounded-md">
                         -{calculateDiscount(selectedProduct.original_price, selectedProduct.price_usd)}% ↓
                       </span>
-                      <span className="text-gray-400 line-through text-sm">{formatPrice(selectedProduct.original_price)}</span>
+                      <span className="text-gray-400 line-through decoration-red-400/70 italic font-medium text-sm">{formatPrice(selectedProduct.original_price)}</span>
                     </>
                   )}
                 </div>
