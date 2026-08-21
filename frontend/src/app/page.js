@@ -15,7 +15,7 @@ export default function Home() {
   const [appliedPromo, setAppliedPromo] = useState(null);
   
   const [reviews, setReviews] = useState([]);
-  const [ratingInput, setRatingInput] = useState(5);
+  const [ratingInput, setRatingInput] = useState(0);
   const [reviewInput, setReviewInput] = useState('');
   const reviewInputRef = useRef(null);
   
