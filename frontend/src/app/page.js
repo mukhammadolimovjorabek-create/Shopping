@@ -453,9 +453,12 @@ export default function Home() {
         }
       }
 
+      setCart([]);
       setCheckoutStep(0);
       setReceiptFile(null);
       setCheckoutSuccess(true);
+      // Immediately load orders so UI updates
+      loadMyOrders();
       
       setTimeout(() => {
         setCheckoutSuccess(false);
@@ -473,9 +476,16 @@ export default function Home() {
     setProfileView('orders');
     if (!tgUser) return;
     try {
-      const { data } = await supabase.from('orders').select('*, products(title, image_url)').eq('user_id', tgUser.id.toString()).order('created_at', { ascending: false });
-      if (data) setMyOrders(data);
-    } catch(e){}
+      const { data: userRow } = await supabase.from('users').select('id').eq('telegram_id', tgUser.id).single();
+      if (userRow) {
+        const { data } = await supabase.from('orders').select('*, products(title, image_url)').eq('user_id', userRow.id).order('created_at', { ascending: false });
+        if (data) setMyOrders(data);
+      } else {
+        setMyOrders([]);
+      }
+    } catch(e){
+      console.error(e);
+    }
   };
 
   const loadMyReviews = async () => {
@@ -487,7 +497,7 @@ export default function Home() {
     } catch(e){}
   };
 
-  if (loading) return <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-900 text-purple-500 font-bold">Yuklanmoqda...</div>;
+  if (loading) return <div className="flex h-screen items-center justify-center bg-white dark:bg-slate-900 text-purple-500 font-bold">Yuklanmoqda...</div>;
 
   const handleOnboard = () => {
     if (!onboardName.trim()) return alert("Iltimos, ismingizni kiriting");
@@ -502,16 +512,16 @@ export default function Home() {
 
   if (!hasOnboarded) {
     return (
-      <div data-theme={theme} className={`omni-app flex flex-col h-screen items-center justify-center p-6 text-center animate-fade-in ${theme === 'dark' ? 'dark bg-black text-white' : 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold'}`}>
-        <h1 className="text-3xl font-extrabold mb-2 text-slate-900 dark:text-white font-bold"><span className="text-purple-600">Omni</span><span className="text-orange-500">Shop</span> ga xush kelibsiz!</h1>
-        <p className="text-slate-900 dark:text-white opacity-90 mb-8 font-medium">Xaridlarni boshlashdan oldin, iltimos ism-familiyangizni kiriting:</p>
+      <div data-theme={theme} className={`omni-app flex flex-col h-screen items-center justify-center p-6 text-center animate-fade-in ${theme === 'dark' ? 'dark bg-black text-white' : 'bg-white dark:bg-slate-900 text-black dark:text-white font-bold'}`}>
+        <h1 className="text-3xl font-extrabold mb-2 text-black dark:text-white font-bold"><span className="text-purple-600">Omni</span><span className="text-orange-500">Shop</span> ga xush kelibsiz!</h1>
+        <p className="text-black dark:text-white opacity-90 mb-8 font-medium">Xaridlarni boshlashdan oldin, iltimos ism-familiyangizni kiriting:</p>
         <div className="w-full max-w-sm bg-white dark:bg-slate-900 dark:bg-gray-800 p-6 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 dark:border-gray-700">
           <input 
             type="text" 
             placeholder={tr("Ismingiz va familiyangiz")} 
             value={onboardName}
             onChange={(e) => setOnboardName(e.target.value)}
-            className="w-full border border-slate-200 dark:border-slate-800 dark:border-gray-700 bg-transparent rounded-xl p-4 text-center font-bold text-lg mb-4 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all text-slate-900 dark:text-white font-bold dark:text-white"
+            className="w-full border border-slate-200 dark:border-slate-800 dark:border-gray-700 bg-transparent rounded-xl p-4 text-center font-bold text-lg mb-4 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all text-black dark:text-white font-bold dark:text-white"
           />
           <button 
             onClick={handleOnboard}
@@ -558,13 +568,13 @@ export default function Home() {
           ✓
         </div>
         <h1 className="text-4xl font-black text-green-600 mb-2">{tr("Qabul qilindi!")}</h1>
-        <p className="text-slate-900 dark:text-white font-medium">Buyurtma muvaffaqiyatli rasmiylashtirildi. Tez orada bog'lanamiz.</p>
+        <p className="text-black dark:text-white font-medium">Buyurtma muvaffaqiyatli rasmiylashtirildi. Tez orada bog'lanamiz.</p>
       </div>
     );
   }
 
   return (
-    <div data-theme={theme} className={`omni-app flex flex-col h-screen text-slate-900 dark:text-white font-bold dark:text-gray-100 font-sans overflow-hidden relative ${theme === 'dark' ? 'dark bg-black' : 'bg-white dark:bg-slate-900'} transition-colors`}>
+    <div data-theme={theme} className={`omni-app flex flex-col h-screen text-black dark:text-white font-bold dark:text-gray-100 font-sans overflow-hidden relative ${theme === 'dark' ? 'dark bg-black' : 'bg-white dark:bg-slate-900'} transition-colors`}>
       
       <div className="bg-white dark:bg-slate-900 dark:bg-slate-900 px-4 py-3 flex justify-between items-center shadow-sm z-10">
         <div>
@@ -574,7 +584,7 @@ export default function Home() {
             </span>
             <span className="text-xl">🛍️</span>
           </h1>
-          <div className="flex items-center gap-1.5 text-[10px] text-slate-900 dark:text-white opacity-90 font-medium mt-0.5">
+          <div className="flex items-center gap-1.5 text-[10px] text-black dark:text-white opacity-90 font-medium mt-0.5">
             {tr("XTD")}
             <img src="https://flagcdn.com/w20/cn.png" srcSet="https://flagcdn.com/w40/cn.png 2x" alt="CN" className="w-4 h-auto shadow-sm rounded-sm" />
             <img src="https://flagcdn.com/w20/uz.png" srcSet="https://flagcdn.com/w40/uz.png 2x" alt="UZ" className="w-4 h-auto shadow-sm rounded-sm" />
@@ -620,8 +630,8 @@ export default function Home() {
                     {discount > 0 && (
                       <p className="text-slate-500 dark:text-slate-400 line-through decoration-red-400/70 italic font-medium text-[11px] leading-tight">{formatPrice(p.original_price)}</p>
                     )}
-                    <p className="text-sm font-extrabold text-slate-900 dark:text-white font-bold leading-tight">{formatPrice(p.price_usd)}</p>
-                    <p className="text-xs text-slate-900 dark:text-white mt-1 line-clamp-2 leading-snug">{p.title}</p>
+                    <p className="text-sm font-extrabold text-black dark:text-white font-bold leading-tight">{formatPrice(p.price_usd)}</p>
+                    <p className="text-xs text-black dark:text-white mt-1 line-clamp-2 leading-snug">{p.title}</p>
                     
                     <div className="mt-2 flex items-center gap-1">
                       <span className="bg-yellow-100 text-yellow-700 text-[9px] font-bold px-1.5 py-0.5 rounded">
@@ -659,7 +669,7 @@ export default function Home() {
                     <img src={item.image_url} className="w-20 h-20 object-cover rounded-xl" />
                     <div className="flex-1">
                       <p className="font-semibold text-sm leading-tight">{item.title}</p>
-                      {item.selectedSize && <p className="text-xs text-slate-900 dark:text-white opacity-90 mt-1">O'lcham: {item.selectedSize}</p>}
+                      {item.selectedSize && <p className="text-xs text-black dark:text-white opacity-90 mt-1">O'lcham: {item.selectedSize}</p>}
                       <p className="font-bold text-purple-600 mt-1">{formatPrice(item.finalPrice)}</p>
                     </div>
                     <button onClick={() => removeFromCart(item.cart_id)} className="absolute top-2 right-2 p-2 text-slate-500 dark:text-slate-400 hover:text-red-500">
@@ -710,50 +720,50 @@ export default function Home() {
                     {profileName} 
                     <button onClick={() => setIsEditingProfile(true)} className="text-slate-500 dark:text-slate-400 hover:text-purple-600 text-lg">✏️</button>
                   </h2>
-                  <p className="text-slate-900 dark:text-white opacity-90 text-sm">{tgUser ? '@'+(tgUser.username || '') : ''}</p>
+                  <p className="text-black dark:text-white opacity-90 text-sm">{tgUser ? '@'+(tgUser.username || '') : ''}</p>
                 </div>
               )}
             </div>
 
             {isAdmin ? (
               <div className="space-y-2">
-                <button onClick={loadAllOrders} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 dark:border-gray-700">
-                  <span className="font-semibold text-slate-900 dark:text-white font-semibold dark:text-gray-200 flex items-center gap-2"><span className="text-xl">📦</span> Barcha Mijozlar Buyurtmalari</span>
+                <button onClick={loadAllOrders} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 dark:border-gray-700">
+                  <span className="font-semibold text-black dark:text-white font-semibold dark:text-gray-200 flex items-center gap-2"><span className="text-xl">📦</span> Barcha Mijozlar Buyurtmalari</span>
                   <span className="text-slate-500 dark:text-slate-400">➔</span>
                 </button>
-                <button onClick={loadAllReviews} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 dark:border-gray-700">
-                  <span className="font-semibold text-slate-900 dark:text-white font-semibold dark:text-gray-200 flex items-center gap-2"><span className="text-xl">💬</span> Mijozlar Sharhlari (Javob berish)</span>
+                <button onClick={loadAllReviews} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 dark:border-gray-700">
+                  <span className="font-semibold text-black dark:text-white font-semibold dark:text-gray-200 flex items-center gap-2"><span className="text-xl">💬</span> Mijozlar Sharhlari (Javob berish)</span>
                   <span className="text-slate-500 dark:text-slate-400">➔</span>
                 </button>
-                <button onClick={loadAllMessages} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 dark:border-gray-700">
-                  <span className="font-semibold text-slate-900 dark:text-white font-semibold dark:text-gray-200 flex items-center gap-2"><span className="text-xl">🎧</span> Mijozlar Murojaatlari (Javob)</span>
+                <button onClick={loadAllMessages} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 dark:border-gray-700">
+                  <span className="font-semibold text-black dark:text-white font-semibold dark:text-gray-200 flex items-center gap-2"><span className="text-xl">🎧</span> Mijozlar Murojaatlari (Javob)</span>
                   <span className="text-slate-500 dark:text-slate-400">➔</span>
                 </button>
                 <button onClick={() => window.location.href = '/admin.html#products'} className="w-full bg-purple-600 text-white p-4 rounded-2xl shadow-sm flex justify-between items-center active:scale-95 border border-transparent mt-4">
                   <span className="font-bold text-lg flex items-center gap-2">👨‍💻 Tovar va Do'kon Boshqaruvi</span>
                   <span>➔</span>
                 </button>
-                <button onClick={() => setProfileView('settings')} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 dark:border-gray-700 mt-4">
-                  <span className="font-semibold text-slate-900 dark:text-white font-semibold dark:text-gray-200 flex items-center gap-2"><span className="text-xl">⚙️</span> Sozlamalar</span>
+                <button onClick={() => setProfileView('settings')} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 dark:border-gray-700 mt-4">
+                  <span className="font-semibold text-black dark:text-white font-semibold dark:text-gray-200 flex items-center gap-2"><span className="text-xl">⚙️</span> Sozlamalar</span>
                   <span className="text-slate-500 dark:text-slate-400">➔</span>
                 </button>
               </div>
             ) : (
               <div className="space-y-2">
-                <button onClick={() => { setProfileView('orders'); loadMyOrders(); }} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 dark:border-gray-700">
-                  <span className="font-semibold text-slate-900 dark:text-white font-semibold dark:text-gray-200 flex items-center gap-2"><span className="text-xl">📦</span> {tr("Buyurtmalarim")}</span>
+                <button onClick={() => { setProfileView('orders'); loadMyOrders(); }} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 dark:border-gray-700">
+                  <span className="font-semibold text-black dark:text-white font-semibold dark:text-gray-200 flex items-center gap-2"><span className="text-xl">📦</span> {tr("Buyurtmalarim")}</span>
                   <span className="text-slate-500 dark:text-slate-400">➔</span>
                 </button>
-                <button onClick={() => { setProfileView('reviews'); loadMyReviews(); }} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 dark:border-gray-700">
-                  <span className="font-semibold text-slate-900 dark:text-white font-semibold dark:text-gray-200 flex items-center gap-2"><span className="text-xl">💬</span> {tr("Sharhlar")}</span>
+                <button onClick={() => { setProfileView('reviews'); loadMyReviews(); }} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 dark:border-gray-700">
+                  <span className="font-semibold text-black dark:text-white font-semibold dark:text-gray-200 flex items-center gap-2"><span className="text-xl">💬</span> {tr("Sharhlar")}</span>
                   <span className="text-slate-500 dark:text-slate-400">➔</span>
                 </button>
-                <button onClick={() => { setProfileView('support'); loadMyMessages(); }} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 dark:border-gray-700">
-                  <span className="font-semibold text-slate-900 dark:text-white font-semibold dark:text-gray-200 flex items-center gap-2"><span className="text-xl">🎧</span> {tr("Murojaatlarim")}</span>
+                <button onClick={() => { setProfileView('support'); loadMyMessages(); }} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 dark:border-gray-700">
+                  <span className="font-semibold text-black dark:text-white font-semibold dark:text-gray-200 flex items-center gap-2"><span className="text-xl">🎧</span> {tr("Murojaatlarim")}</span>
                   <span className="text-slate-500 dark:text-slate-400">➔</span>
                 </button>
-                <button onClick={() => setProfileView('settings')} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 dark:border-gray-700">
-                  <span className="font-semibold text-slate-900 dark:text-white font-semibold dark:text-gray-200 flex items-center gap-2"><span className="text-xl">⚙️</span> {tr("Sozlamalar")}</span>
+                <button onClick={() => setProfileView('settings')} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex justify-between items-center active:bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 dark:border-gray-700">
+                  <span className="font-semibold text-black dark:text-white font-semibold dark:text-gray-200 flex items-center gap-2"><span className="text-xl">⚙️</span> {tr("Sozlamalar")}</span>
                   <span className="text-slate-500 dark:text-slate-400">➔</span>
                 </button>
               </div>
@@ -763,40 +773,40 @@ export default function Home() {
 
         
           {activeTab === 'profile' && profileView === 'all_orders' && (
-            <div className="p-4 pb-20 bg-slate-50 dark:bg-slate-900 min-h-screen">
+            <div className="p-4 pb-20 bg-white dark:bg-slate-900 min-h-screen">
               <button onClick={() => setProfileView('main')} className="mb-4 text-purple-600 font-bold flex items-center gap-1">
                 <span>←</span> Orqaga
               </button>
-              <h2 className="text-2xl font-bold mb-4 text-slate-900 dark:text-white">📦 Barcha Buyurtmalar</h2>
+              <h2 className="text-2xl font-bold mb-4 text-black dark:text-white">📦 Barcha Buyurtmalar</h2>
               <div className="space-y-6">
                 {allOrders.map(order => (
                   <div key={order.id} className="bg-white dark:bg-black p-5 rounded-2xl shadow-md border border-slate-200 dark:border-slate-800">
                     <div className="mb-4 pb-4 border-b border-slate-100 dark:border-slate-800">
-                      <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2">👤 Mijoz ma'lumotlari</h3>
-                      <p className="text-sm text-slate-900 dark:text-white">Ism: <b>{order.users?.full_name || order.users?.first_name || 'Noma\'lum'}</b> {order.users?.username ? `(@${order.users.username})` : ''}</p>
-                      <p className="text-sm text-slate-900 dark:text-white mt-1">Tel: <b>{order.users?.phone_number || '-'}</b></p>
+                      <h3 className="font-bold text-lg text-black dark:text-white mb-2">👤 Mijoz ma'lumotlari</h3>
+                      <p className="text-sm text-black dark:text-white">Ism: <b>{order.users?.full_name || order.users?.first_name || 'Noma\'lum'}</b> {order.users?.username ? `(@${order.users.username})` : ''}</p>
+                      <p className="text-sm text-black dark:text-white mt-1">Tel: <b>{order.users?.phone_number || '-'}</b></p>
                     </div>
 
                     <div className="mb-4 pb-4 border-b border-slate-100 dark:border-slate-800">
-                      <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2">🛍 Tovar ma'lumotlari</h3>
+                      <h3 className="font-bold text-lg text-black dark:text-white mb-2">🛍 Tovar ma'lumotlari</h3>
                       <div className="flex gap-4">
                         {order.products?.image_url && <img src={order.products.image_url} className="w-20 h-20 object-cover rounded-xl border border-slate-200 dark:border-slate-700" />}
                         <div className="flex-1">
-                          <p className="font-bold text-slate-900 dark:text-white text-md line-clamp-2">{order.products?.title}</p>
-                          <p className="text-sm text-slate-900 dark:text-white mt-1">O'lcham (Size): <b>{order.size || '-'}</b></p>
-                          <p className="text-sm text-slate-900 dark:text-white mt-1">Rang: <b>{order.color || '-'}</b></p>
-                          <p className="text-sm text-slate-900 dark:text-white mt-1">Soni: <b>{order.quantity || 1} ta</b></p>
+                          <p className="font-bold text-black dark:text-white text-md line-clamp-2">{order.products?.title}</p>
+                          <p className="text-sm text-black dark:text-white mt-1">O'lcham (Size): <b>{order.size || '-'}</b></p>
+                          <p className="text-sm text-black dark:text-white mt-1">Rang: <b>{order.color || '-'}</b></p>
+                          <p className="text-sm text-black dark:text-white mt-1">Soni: <b>{order.quantity || 1} ta</b></p>
                           <p className="font-extrabold text-purple-600 mt-2 text-lg">{Number(order.total_price_uzs).toLocaleString('ru-RU')} so'm</p>
                         </div>
                       </div>
                     </div>
 
                     <div className="mb-4 pb-4 border-b border-slate-100 dark:border-slate-800">
-                      <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2">🕒 Vaqt va To'lov</h3>
-                      <p className="text-sm text-slate-900 dark:text-white mb-2">Sana: <b>{new Date(order.created_at).toLocaleString('ru-RU')}</b></p>
+                      <h3 className="font-bold text-lg text-black dark:text-white mb-2">🕒 Vaqt va To'lov</h3>
+                      <p className="text-sm text-black dark:text-white mb-2">Sana: <b>{new Date(order.created_at).toLocaleString('ru-RU')}</b></p>
                       {order.receipt_image_url ? (
                         <div className="mt-2">
-                          <p className="text-sm font-bold text-slate-900 dark:text-white mb-1">50% To'lov cheki:</p>
+                          <p className="text-sm font-bold text-black dark:text-white mb-1">50% To'lov cheki:</p>
                           <a href={order.receipt_image_url} target="_blank">
                             <img src={order.receipt_image_url} className="w-32 h-auto rounded-lg border border-slate-300 dark:border-slate-700 hover:opacity-80 transition" />
                           </a>
@@ -810,11 +820,11 @@ export default function Home() {
                     </div>
 
                     <div>
-                      <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-3">⚙️ Boshqaruv (Status)</h3>
+                      <h3 className="font-bold text-lg text-black dark:text-white mb-3">⚙️ Boshqaruv (Status)</h3>
                       <select 
                         value={order.status || 'Tekshirilmoqda'} 
                         onChange={(e) => updateOrderStatus(order.id, e.target.value)}
-                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-bold rounded-xl p-3 outline-none mb-3"
+                        className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-black dark:text-white font-bold rounded-xl p-3 outline-none mb-3"
                       >
                         <option value="Tekshirilmoqda">Tekshirilmoqda</option>
                         <option value="Qabul qilindi">1. Qabul qilindi</option>
@@ -850,12 +860,12 @@ export default function Home() {
                 {allReviews.map(r => (
                   <div key={r.id} className="bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 dark:border-gray-700">
                     <p className="font-bold dark:text-white">{r.users?.first_name}</p>
-                    <p className="text-sm text-slate-900 dark:text-white dark:text-gray-300 mt-1">{r.content}</p>
+                    <p className="text-sm text-black dark:text-white dark:text-gray-300 mt-1">{r.content}</p>
                     <div className="mt-3 flex gap-2">
                       <input 
                         type="text" 
                         placeholder="Javob yozish..." 
-                        className="flex-1 bg-slate-50 dark:bg-slate-900 dark:bg-gray-700 border border-slate-300 dark:border-slate-700 dark:border-gray-600 text-sm rounded-lg p-2 dark:text-white"
+                        className="flex-1 bg-white dark:bg-slate-900 dark:bg-gray-700 border border-slate-300 dark:border-slate-700 dark:border-gray-600 text-sm rounded-lg p-2 dark:text-white"
                         value={replyTexts[r.id] || ''}
                         onChange={(e) => setReplyTexts({...replyTexts, [r.id]: e.target.value})}
                       />
@@ -877,12 +887,12 @@ export default function Home() {
                 {allMessages.map(m => (
                   <div key={m.id} className="bg-white dark:bg-slate-900 dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 dark:border-gray-700">
                     <p className="font-bold dark:text-white">{m.users?.first_name}</p>
-                    <p className="text-sm text-slate-900 dark:text-white dark:text-gray-300 mt-1">{m.content}</p>
+                    <p className="text-sm text-black dark:text-white dark:text-gray-300 mt-1">{m.content}</p>
                     <div className="mt-3 flex gap-2">
                       <input 
                         type="text" 
                         placeholder="Javob yozish..." 
-                        className="flex-1 bg-slate-50 dark:bg-slate-900 dark:bg-gray-700 border border-slate-300 dark:border-slate-700 dark:border-gray-600 text-sm rounded-lg p-2 dark:text-white"
+                        className="flex-1 bg-white dark:bg-slate-900 dark:bg-gray-700 border border-slate-300 dark:border-slate-700 dark:border-gray-600 text-sm rounded-lg p-2 dark:text-white"
                         value={replyTexts[m.id] || ''}
                         onChange={(e) => setReplyTexts({...replyTexts, [m.id]: e.target.value})}
                       />
@@ -902,19 +912,19 @@ export default function Home() {
             <h2 className="text-xl font-bold mb-4">⚙️ {tr("Sozlamalar")}</h2>
             
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm mb-4 border border-slate-200 dark:border-slate-800">
-              <h3 className="font-bold text-slate-900 dark:text-white mb-3">🌐 {tr("Tilni o'zgartirish")}</h3>
+              <h3 className="font-bold text-black dark:text-white mb-3">🌐 {tr("Tilni o'zgartirish")}</h3>
               <div className="flex gap-2">
-                <button onClick={() => changeLang('uz')} className={`flex-1 font-bold py-2.5 rounded-xl shadow-sm transition ${lang === 'uz' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-slate-900 dark:text-white opacity-90'}`}>🇺🇿 O'zbekcha</button>
-   <button onClick={() => changeLang('ru')} className={`flex-1 font-bold py-2.5 rounded-xl shadow-sm transition ${lang === 'ru' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-slate-900 dark:text-white opacity-90'}`}>🇷🇺 Русский</button>
-   <button onClick={() => changeLang('en')} className={`flex-1 font-bold py-2.5 rounded-xl shadow-sm transition ${lang === 'en' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-slate-900 dark:text-white opacity-90'}`}>🇬🇧 English</button>
+                <button onClick={() => changeLang('uz')} className={`flex-1 font-bold py-2.5 rounded-xl shadow-sm transition ${lang === 'uz' ? 'bg-purple-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-black dark:text-white font-bold'}`}>🇺🇿 O'zbekcha</button>
+   <button onClick={() => changeLang('ru')} className={`flex-1 font-bold py-2.5 rounded-xl shadow-sm transition ${lang === 'ru' ? 'bg-purple-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-black dark:text-white font-bold'}`}>🇷🇺 Русский</button>
+   <button onClick={() => changeLang('en')} className={`flex-1 font-bold py-2.5 rounded-xl shadow-sm transition ${lang === 'en' ? 'bg-purple-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-black dark:text-white font-bold'}`}>🇬🇧 English</button>
               </div>
             </div>
 
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm mb-4 border border-slate-200 dark:border-slate-800">
-              <h3 className="font-bold text-slate-900 dark:text-white mb-3">🎨 {tr("Mavzuni o'zgartirish")}</h3>
+              <h3 className="font-bold text-black dark:text-white mb-3">🎨 {tr("Mavzuni o'zgartirish")}</h3>
               <div className="flex gap-2">
-                <button onClick={() => changeTheme('light')} className={`flex-1 font-bold py-2.5 rounded-xl shadow-sm transition ${theme === 'light' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-slate-900 dark:text-white opacity-90'}`}>☀️ {tr("Yorug'")}</button>
-   <button onClick={() => changeTheme('dark')} className={`flex-1 font-bold py-2.5 rounded-xl shadow-sm transition ${theme === 'dark' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-slate-900 dark:text-white opacity-90'}`}>🌙 {tr("Qorong'i")}</button>
+                <button onClick={() => changeTheme('light')} className={`flex-1 font-bold py-2.5 rounded-xl shadow-sm transition ${theme === 'light' ? 'bg-purple-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-black dark:text-white font-bold'}`}>☀️ {tr("Yorug'")}</button>
+   <button onClick={() => changeTheme('dark')} className={`flex-1 font-bold py-2.5 rounded-xl shadow-sm transition ${theme === 'dark' ? 'bg-purple-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-black dark:text-white font-bold'}`}>🌙 {tr("Qorong'i")}</button>
               </div>
             </div>
           </div>
@@ -927,9 +937,9 @@ export default function Home() {
             </button>
             <h2 className="text-xl font-bold mb-4">🎧 Sotuvchiga Murojaat</h2>
             <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
-              <p className="text-sm text-slate-900 dark:text-white mb-4">Savollaringiz yoki takliflaringizni yozib qoldiring. Biz imkon qadar tezroq javob beramiz.</p>
+              <p className="text-sm text-black dark:text-white mb-4">Savollaringiz yoki takliflaringizni yozib qoldiring. Biz imkon qadar tezroq javob beramiz.</p>
               <textarea value={supportText} onChange={e => setSupportText(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 outline-none focus:border-purple-500 h-32 mb-3"
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 outline-none focus:border-purple-500 h-32 mb-3"
                 placeholder="Xabaringizni yozing..."
               ></textarea>
               <button onClick={submitSupport} className="w-full bg-purple-600 text-white font-bold py-3 rounded-xl active:scale-95 transition-transform">
@@ -940,53 +950,50 @@ export default function Home() {
         )}
 
         {activeTab === 'profile' && profileView === 'orders' && (
-          <div className="p-4">
-            <button onClick={() => setProfileView('main')} className="mb-4 text-purple-600 font-bold flex items-center gap-1">
-              <span>‹</span> Orqaga
-            </button>
-            <h2 className="text-xl font-bold mb-4">📦 Mening Buyurtmalarim</h2>
-            
-            {myOrders.length === 0 ? (
-              <p className="text-slate-900 dark:text-white opacity-90 text-center mt-10">Sizda hali buyurtmalar yo'q.</p>
-            ) : (
-              <div className="space-y-4">
-                {myOrders.map(order => (
-                  <div key={order.id} className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
-                    <div className="flex justify-between items-center mb-3 pb-3 border-b border-slate-200 dark:border-slate-800">
-                      <span className="text-sm text-slate-900 dark:text-white opacity-90">{new Date(order.created_at).toLocaleDateString()}</span>
-                      <span className={`text-xs font-bold px-2 py-1 rounded-md ${order.status === 'Kutilmoqda' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
-                        {order.status}
-                      </span>
-                    </div>
-                    <div className="space-y-3 mb-3">
-                      {order.product_details.map((item, idx) => (
-                        <div key={idx} className="flex gap-3">
-                          <img src={item.image_url} className="w-12 h-12 object-cover rounded-lg bg-gray-100" />
-                          <div className="flex-1">
-                            <p className="text-sm font-bold leading-tight line-clamp-1">{item.title}</p>
-                            <p className="text-xs text-slate-900 dark:text-white opacity-90">Razmer: {item.selectedSize || 'yoq'}</p>
-                          </div>
-                          <button onClick={() => {
-                            const prod = products.find(p => p.id === item.id);
-                            if (prod) openProduct(prod);
-                            else alert('Bu mahsulot hozirda sotuvda yo\'q');
-                          }} className="text-xs font-bold text-purple-600 bg-purple-50 px-2 rounded-lg h-8 self-center border border-purple-100">
-                            Sharh yozish
-                          </button>
+            <div className="p-4 pb-20 bg-white dark:bg-slate-900 min-h-screen">
+              <button onClick={() => setProfileView('main')} className="mb-4 text-purple-600 font-bold flex items-center gap-1">
+                <span>←</span> Orqaga
+              </button>
+              <h2 className="text-2xl font-bold mb-4 text-black dark:text-white">📦 Mening Buyurtmalarim</h2>
+              
+              {myOrders.length === 0 ? (
+                <p className="text-black dark:text-white opacity-90 text-center mt-10">Sizda hali buyurtmalar yo'q.</p>
+              ) : (
+                <div className="space-y-4">
+                  {myOrders.map(order => (
+                    <div key={order.id} className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+                      
+                      <div className="flex gap-4 mb-4 pb-4 border-b border-slate-100 dark:border-slate-700">
+                        {order.products?.image_url && <img src={order.products.image_url} className="w-20 h-20 object-cover rounded-xl border border-slate-200 dark:border-slate-600" />}
+                        <div className="flex-1">
+                          <p className="font-bold text-black dark:text-white text-md line-clamp-2">{order.products?.title}</p>
+                          <p className="text-sm text-black dark:text-white mt-1">O'lcham: <b>{order.size || '-'}</b></p>
+                          <p className="text-sm text-black dark:text-white mt-1">Rang: <b>{order.color || '-'}</b></p>
+                          <p className="font-extrabold text-purple-600 mt-2 text-lg">{Number(order.total_price_uzs).toLocaleString('ru-RU')} so'm</p>
                         </div>
-                      ))}
-                    </div>
-                    <div className="text-right font-bold text-slate-900 dark:text-white">
-                      Jami: {formatPrice(order.total_price)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                      </div>
 
-        {activeTab === 'profile' && profileView === 'reviews' && (
+                      <div className="flex flex-col gap-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Sana:</span>
+                          <span className="text-sm text-black dark:text-white font-bold">{new Date(order.created_at).toLocaleString('ru-RU')}</span>
+                        </div>
+                        <div className="flex justify-between items-center mt-1">
+                          <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Holati:</span>
+                          <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">
+                            {order.status === 'Tekshirilmoqda' ? '1. To\'lov tekshirilmoqda / Qabul qilindi' : order.status}
+                          </span>
+                        </div>
+                      </div>
+                      
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'profile' && profileView === 'reviews' && (
           <div className="p-4">
             <button onClick={() => setProfileView('main')} className="mb-4 text-purple-600 font-bold flex items-center gap-1">
               <span>‹</span> Orqaga
@@ -994,7 +1001,7 @@ export default function Home() {
             <h2 className="text-xl font-bold mb-4">💬 Sharhlar</h2>
             
             {myReviews.length === 0 ? (
-              <p className="text-slate-900 dark:text-white opacity-90 text-center mt-10">Sizda hali sharhlar yo'q.</p>
+              <p className="text-black dark:text-white opacity-90 text-center mt-10">Sizda hali sharhlar yo'q.</p>
             ) : (
               <div className="space-y-3">
                 {myReviews.map(review => (
@@ -1006,11 +1013,11 @@ export default function Home() {
                         <span className="text-yellow-500 text-xs">{'⭐'.repeat(review.rating || 5)}</span>
                       </div>
                     </div>
-                    <p className="text-sm text-slate-900 dark:text-white font-semibold bg-slate-50 dark:bg-slate-900 p-2 rounded-lg">{review.text}</p>
+                    <p className="text-sm text-black dark:text-white font-semibold bg-white dark:bg-slate-900 p-2 rounded-lg">{review.text}</p>
                     {review.admin_reply && (
                       <div className="mt-2 ml-4 p-2 bg-purple-50 rounded-lg border-l-4 border-purple-400">
                         <p className="text-xs font-bold text-purple-600">Admin javobi:</p>
-                        <p className="text-sm text-slate-900 dark:text-white font-semibold">{review.admin_reply}</p>
+                        <p className="text-sm text-black dark:text-white font-semibold">{review.admin_reply}</p>
                       </div>
                     )}
                   </div>
@@ -1042,22 +1049,22 @@ export default function Home() {
       {checkoutStep === 1 && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-6 relative">
-            <button onClick={() => setCheckoutStep(0)} className="absolute top-4 right-4 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white">✕</button>
+            <button onClick={() => setCheckoutStep(0)} className="absolute top-4 right-4 text-slate-500 dark:text-slate-400 hover:text-black dark:text-white">✕</button>
             <h2 className="text-2xl font-bold mb-4">Rasmiylashtirish (1/2)</h2>
-            <p className="text-slate-900 dark:text-white opacity-90 text-sm mb-4">Ma'lumotlaringizni kiriting:</p>
+            <p className="text-black dark:text-white opacity-90 text-sm mb-4">Ma'lumotlaringizni kiriting:</p>
             
             <div className="space-y-4 mb-6">
               <div>
-                <label className="text-xs font-bold text-slate-900 dark:text-white mb-1 block">Ism-familiya *</label>
-                <input type="text" value={checkoutName} onChange={e=>setCheckoutName(e.target.value)} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 border border-slate-300 dark:border-slate-700 dark:border-gray-600 p-3 rounded-xl outline-none focus:border-purple-500 text-slate-900 dark:text-white font-bold dark:text-white placeholder-gray-500 dark:placeholder-gray-400" placeholder="Ali Valiyev" />
+                <label className="text-xs font-bold text-black dark:text-white mb-1 block">Ism-familiya *</label>
+                <input type="text" value={checkoutName} onChange={e=>setCheckoutName(e.target.value)} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 border border-slate-300 dark:border-slate-700 dark:border-gray-600 p-3 rounded-xl outline-none focus:border-purple-500 text-black dark:text-white font-bold dark:text-white placeholder-gray-500 dark:placeholder-gray-400" placeholder="Ali Valiyev" />
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-900 dark:text-white mb-1 block">Asosiy nomer *</label>
-                <input type="tel" value={checkoutPhone1} onChange={e=>setCheckoutPhone1(e.target.value)} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 border border-slate-300 dark:border-slate-700 dark:border-gray-600 p-3 rounded-xl outline-none focus:border-purple-500 text-slate-900 dark:text-white font-bold dark:text-white placeholder-gray-500 dark:placeholder-gray-400" placeholder="+998 90 123 45 67" />
+                <label className="text-xs font-bold text-black dark:text-white mb-1 block">Asosiy nomer *</label>
+                <input type="tel" value={checkoutPhone1} onChange={e=>setCheckoutPhone1(e.target.value)} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 border border-slate-300 dark:border-slate-700 dark:border-gray-600 p-3 rounded-xl outline-none focus:border-purple-500 text-black dark:text-white font-bold dark:text-white placeholder-gray-500 dark:placeholder-gray-400" placeholder="+998 90 123 45 67" />
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-900 dark:text-white mb-1 block">Qo'shimcha nomer *</label>
-                <input type="tel" value={checkoutPhone2} onChange={e=>setCheckoutPhone2(e.target.value)} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 border border-slate-300 dark:border-slate-700 dark:border-gray-600 p-3 rounded-xl outline-none focus:border-purple-500 text-slate-900 dark:text-white font-bold dark:text-white placeholder-gray-500 dark:placeholder-gray-400" placeholder="+998 90 765 43 21" />
+                <label className="text-xs font-bold text-black dark:text-white mb-1 block">Qo'shimcha nomer *</label>
+                <input type="tel" value={checkoutPhone2} onChange={e=>setCheckoutPhone2(e.target.value)} className="w-full bg-white dark:bg-slate-900 dark:bg-gray-800 border border-slate-300 dark:border-slate-700 dark:border-gray-600 p-3 rounded-xl outline-none focus:border-purple-500 text-black dark:text-white font-bold dark:text-white placeholder-gray-500 dark:placeholder-gray-400" placeholder="+998 90 765 43 21" />
               </div>
             </div>
             
@@ -1071,12 +1078,12 @@ export default function Home() {
       {checkoutStep === 2 && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-6 relative">
-            <button onClick={() => setCheckoutStep(0)} className="absolute top-4 right-4 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white">✕</button>
+            <button onClick={() => setCheckoutStep(0)} className="absolute top-4 right-4 text-slate-500 dark:text-slate-400 hover:text-black dark:text-white">✕</button>
             <h2 className="text-2xl font-bold mb-2">{tr("To'lov (2/2)")}</h2>
             <p className="text-red-500 font-bold text-sm mb-4">50% to'lov qilganingizdan keyin rasmiylashtiriladi.</p>
             
             <div className="bg-gray-100 p-4 rounded-xl mb-4 border border-slate-200 dark:border-slate-800">
-              <p className="text-xs text-slate-900 dark:text-white opacity-90 mb-1">Karta raqami (Kopiya qilish uchun bosing):</p>
+              <p className="text-xs text-black dark:text-white opacity-90 mb-1">Karta raqami (Kopiya qilish uchun bosing):</p>
               <div 
                 onClick={() => { navigator.clipboard.writeText('4916990320547877'); alert("Kopiya qilindi!"); }}
                 className="font-mono text-lg font-bold text-purple-700 cursor-pointer bg-purple-50 p-2 rounded-lg text-center active:scale-95 transition flex justify-center items-center gap-2"
@@ -1087,12 +1094,12 @@ export default function Home() {
             </div>
 
             <div className="mb-6">
-              <label className="text-sm font-bold text-slate-900 dark:text-white font-semibold block mb-2">To'lov chekini yuklang (Skrinshot):</label>
-              <input type="file" accept="image/*" onChange={(e) => setReceiptFile(e.target.files[0])} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 rounded-xl outline-none" />
+              <label className="text-sm font-bold text-black dark:text-white font-semibold block mb-2">To'lov chekini yuklang (Skrinshot):</label>
+              <input type="file" accept="image/*" onChange={(e) => setReceiptFile(e.target.files[0])} className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 rounded-xl outline-none" />
             </div>
             
             <div className="flex gap-2">
-              <button onClick={() => setCheckoutStep(1)} className="flex-1 bg-gray-200 text-slate-900 dark:text-white font-semibold font-bold py-4 rounded-2xl active:scale-95 transition-transform">
+              <button onClick={() => setCheckoutStep(1)} className="flex-1 bg-gray-200 text-black dark:text-white font-semibold font-bold py-4 rounded-2xl active:scale-95 transition-transform">
                 Orqaga
               </button>
               <button disabled={isSubmitting} onClick={handleFinalCheckout} className={`flex-1 ${isSubmitting ? 'bg-gray-400' : 'bg-green-500'} text-white font-bold py-4 rounded-2xl active:scale-95 transition-transform shadow-lg`}>
@@ -1127,7 +1134,7 @@ export default function Home() {
                   )}
                 </div>
                 
-                <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white font-bold mb-2">
+                <h2 className="text-3xl font-extrabold text-black dark:text-white font-bold mb-2">
                   {appliedPromo ? (
                     <div className="flex items-baseline gap-2">
                       <span className="text-purple-600">{formatPrice(selectedProduct.price_usd - (selectedProduct.price_usd * appliedPromo / 100))}</span>
@@ -1136,20 +1143,20 @@ export default function Home() {
                     formatPrice(selectedProduct.price_usd)
                   )}
                 </h2>
-                <h3 className="text-lg text-slate-900 dark:text-white font-semibold leading-snug">{selectedProduct.title}</h3>
+                <h3 className="text-lg text-black dark:text-white font-semibold leading-snug">{selectedProduct.title}</h3>
                 
-                <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl flex items-center justify-between">
-                  <span className="text-sm text-slate-900 dark:text-white">Qoldiq: <strong className="text-slate-900 dark:text-white">{selectedProduct.stock_count} ta</strong></span>
-                  <span className="text-sm text-slate-900 dark:text-white">{tr("Yetkazish:")} <strong className="text-slate-900 dark:text-white">{selectedProduct.delivery_time}</strong></span>
+                <div className="mt-4 p-3 bg-white dark:bg-slate-900 rounded-xl flex items-center justify-between">
+                  <span className="text-sm text-black dark:text-white">Qoldiq: <strong className="text-black dark:text-white">{selectedProduct.stock_count} ta</strong></span>
+                  <span className="text-sm text-black dark:text-white">{tr("Yetkazish:")} <strong className="text-black dark:text-white">{selectedProduct.delivery_time}</strong></span>
                 </div>
 
                 {selectedProduct.sizes && selectedProduct.sizes.trim() !== '' && (
                   <div className="mt-6">
-                    <h4 className="font-bold mb-3 text-slate-900 dark:text-white">{tr("O'lchamni tanlang:")}</h4>
+                    <h4 className="font-bold mb-3 text-black dark:text-white">{tr("O'lchamni tanlang:")}</h4>
                     <div className="flex gap-2 flex-wrap">
                       {selectedProduct.sizes.split(',').map(size => size.trim()).map(size => (
                         <button key={size} onClick={() => setSelectedSize(size)}
-                          className={`px-4 py-2 rounded-xl border-2 font-bold transition-all ${selectedSize === size ? 'border-purple-600 text-purple-600 bg-purple-50' : 'border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white hover:border-slate-300 dark:border-slate-700'}`}>
+                          className={`px-4 py-2 rounded-xl border-2 font-bold transition-all ${selectedSize === size ? 'border-purple-600 text-purple-600 bg-purple-50' : 'border-slate-200 dark:border-slate-800 text-black dark:text-white hover:border-slate-300 dark:border-slate-700'}`}>
                           {size}
                         </button>
                       ))}
@@ -1158,7 +1165,7 @@ export default function Home() {
                 )}
 
                 <div className="mt-6">
-                  <h4 className="font-bold mb-3 text-slate-900 dark:text-white">{tr("Promokod")}</h4>
+                  <h4 className="font-bold mb-3 text-black dark:text-white">{tr("Promokod")}</h4>
                   <div className="flex gap-2">
                     <input type="text" value={promoInput} onChange={e => { setPromoInput(e.target.value); setPromoError(false); }}
                       placeholder="Kodni kiriting" 
@@ -1172,7 +1179,7 @@ export default function Home() {
                 <div className="mt-8 border-t pt-6">
                   <h4 className="font-bold text-xl mb-4">Sharhlar ({reviews.length})</h4>
                   
-                  <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl mb-4">
+                  <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl mb-4">
                     <p className="text-sm font-bold mb-2">Baholang:</p>
                     <div className="flex gap-2 mb-3">
                       {[1, 2, 3, 4, 5].map(star => (
@@ -1187,7 +1194,7 @@ export default function Home() {
                   </div>
 
                   {reviews.length === 0 ? (
-                    <div className="text-center text-slate-900 dark:text-white opacity-90 py-6">
+                    <div className="text-center text-black dark:text-white opacity-90 py-6">
                       <p className="text-3xl mb-2">💬</p>
                       <p>Hozircha sharhlar yo'q.</p>
                       <button onClick={() => reviewInputRef.current?.focus()} className="mt-3 text-purple-600 font-bold">Sharh yozish</button>
@@ -1200,11 +1207,11 @@ export default function Home() {
                             <span className="font-bold text-sm">{r.user_name}</span>
                             <span className="text-yellow-500 text-xs">{'⭐'.repeat(r.rating || 5)}</span>
                           </div>
-                          <p className="text-slate-900 dark:text-white text-sm">{r.text}</p>
+                          <p className="text-black dark:text-white text-sm">{r.text}</p>
                           {r.admin_reply && (
                             <div className="mt-2 ml-4 p-2 bg-purple-50 rounded-lg border-l-4 border-purple-400">
                               <p className="text-xs font-bold text-purple-600">Admin javobi:</p>
-                              <p className="text-sm text-slate-900 dark:text-white font-semibold">{r.admin_reply}</p>
+                              <p className="text-sm text-black dark:text-white font-semibold">{r.admin_reply}</p>
                             </div>
                           )}
                         </div>
@@ -1231,20 +1238,20 @@ export default function Home() {
         color: #f8fafc !important;
       }
       [data-theme='dark'] .bg-white dark:bg-slate-900,
-      [data-theme='dark'] .bg-slate-50 dark:bg-slate-900,
+      [data-theme='dark'] .bg-white dark:bg-slate-900,
       [data-theme='dark'] .bg-gray-100 {
         background-color: #1e293b !important;
         border-color: #334155 !important;
         color: #f8fafc !important;
       }
-      [data-theme='dark'] .text-slate-900 dark:text-white font-bold,
-      [data-theme='dark'] .text-slate-900 dark:text-white,
-      [data-theme='dark'] .text-slate-900 dark:text-white font-semibold,
-      [data-theme='dark'] .text-slate-900 dark:text-white,
-      [data-theme='dark'] .text-slate-900 dark:text-white opacity-90 {
+      [data-theme='dark'] .text-black dark:text-white font-bold,
+      [data-theme='dark'] .text-black dark:text-white,
+      [data-theme='dark'] .text-black dark:text-white font-semibold,
+      [data-theme='dark'] .text-black dark:text-white,
+      [data-theme='dark'] .text-black dark:text-white opacity-90 {
         color: #cbd5e1 !important;
       }
-      [data-theme='dark'] .text-slate-900 dark:text-white {
+      [data-theme='dark'] .text-black dark:text-white {
         color: #ffffff !important;
       }
       [data-theme='dark'] input,
