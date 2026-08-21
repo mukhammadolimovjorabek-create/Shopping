@@ -30,7 +30,6 @@ bot.onText(/\/start/, async (msg) => {
         console.error("Foydalanuvchini saqlashda xatolik:", err);
     }
 
-    // Har doim yangi keshsiz link
     const webAppUrl = `https://shopping-gry5.onrender.com?v=${Date.now()}`;
 
     const opts = {
@@ -58,10 +57,8 @@ console.log('====================================');
 
 const app = express();
 
-// Serve the static frontend
-app.use(express.static(path.join(__dirname, 'out')));
+app.use(express.static(path.join(__dirname, 'out'), { extensions: ['html'] }));
 
-// Handle React routing, return all requests to index.html
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'out', 'index.html'));
 });
